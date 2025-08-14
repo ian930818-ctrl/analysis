@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>可編輯人物關係分析工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>📝 可編輯人物關係分析工具 (MVP)</h1>
+            <p>智能識別 + 手動編輯 · 最小可用版本</p>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <!-- 左側：文本區域 -->
+        <div class="left-panel">
+            <div class="panel-header">
+                <h3>📄 文本內容</h3>
+                <div class="text-actions">
+                    <button id="load-sample-btn" class="btn btn--sm btn--secondary">載入範例</button>
+                    <button id="clear-text-btn" class="btn btn--sm btn--outline">清除</button>
+                </div>
+            </div>
+            
+            <div class="text-input-section">
+                <textarea 
+                    id="text-input" 
+                    class="text-input" 
+                    placeholder="請輸入您的文本內容...
+
+例如：
+一天傍晚，森林裡的兔子小白跑到河邊，興奮地喊：「大家快來！今晚我們舉辦一場音樂會！」..."></textarea>
+                <div class="input-actions">
+                    <button id="analyze-text-btn" class="btn btn--primary">🔍 開始分析</button>
+                    <div class="char-count" id="char-count">0 字元</div>
+                </div>
+            </div>
+            
+            <div class="text-preview-section">
+                <div class="section-header">
+                    <h4>文本預覽</h4>
+                    <div class="text-stats">
+                        <span id="text-length">0 字</span>
+                        <span id="char-detected">0 人物</span>
+                    </div>
+                </div>
+                <div id="text-preview" class="text-preview">
+                    <p class="placeholder-text">請輸入文本以開始分析...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右側：關係網絡圖 -->
+        <div class="right-panel">
+            <div class="visualization-header">
+                <h3>🕸️ 人物關係網絡</h3>
+                <div class="view-controls">
+                    <button id="reset-layout-btn" class="btn btn--sm btn--outline">重設佈局</button>
+                </div>
+            </div>
+            
+            <div id="network-container" class="network-container">
+                <div class="network-placeholder" id="network-placeholder">
+                    <div class="placeholder-icon">🕸️</div>
+                    <div class="placeholder-text">
+                        <h3>人物關係網絡</h3>
+                        <p>輸入文本並點擊「開始分析」以查看人物關係圖</p>
+                    </div>
+                </div>
+                <svg id="network-svg" class="network-svg"></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- 人物編輯面板 -->
+    <div class="bottom-panel">
+        <div class="edit-panel">
+            <div class="panel-header">
+                <h3>👥 識別出的人物</h3>
+            </div>
+            <div class="character-list" id="character-list">
+                <div class="empty-state">
+                    <p>尚無人物數據，請先分析文本</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading 提示 -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <div class="loading-text">正在分析文本...</div>
+        </div>
+    </div>
+
+    <!-- Toast 提示 -->
+    <div id="toast-container" class="toast-container"></div>
+    
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
