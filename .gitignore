@@ -57,3 +57,16 @@ yarn.lock
 # Compiled files
 dist/
 build/
+
+# NLP Models and Cache
+dict_cache/
+model_cache/
+chinese_ner_finetuned/
+*.model
+*.bin
+
+# Large model files
+*.pt
+*.pth
+*.pkl
+*.pickle

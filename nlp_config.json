@@ -1,0 +1,78 @@
+{
+  "models": {
+    "bert_crf": {
+      "enabled": true,
+      "model_name": "bert-base-chinese",
+      "model_path": null,
+      "auto_train": true,
+      "training_params": {
+        "epochs": 3,
+        "batch_size": 8,
+        "learning_rate": 2e-5
+      }
+    },
+    "ckip": {
+      "enabled": true,
+      "device": "auto",
+      "fallback_on_error": true
+    },
+    "finetuned_bert": {
+      "enabled": true,
+      "model_path": "./chinese_ner_finetuned",
+      "auto_train": true,
+      "training_params": {
+        "epochs": 2,
+        "batch_size": 4,
+        "learning_rate": 2e-5,
+        "train_size": 800,
+        "val_size": 200
+      }
+    }
+  },
+  "ensemble": {
+    "method": "weighted_voting",
+    "confidence_threshold": 0.5,
+    "min_models_agreement": 2
+  },
+  "preprocessing": {
+    "text_cleaning": true,
+    "sentence_segmentation": true,
+    "max_length": 512,
+    "remove_duplicates": true
+  },
+  "model_weights": {
+    "bert_crf": 0.25,
+    "ckip": 0.45,
+    "finetuned_bert": 0.3
+  },
+  "dictionary": {
+    "enabled": true,
+    "cache_dir": "./dict_cache",
+    "auto_enhance": true,
+    "confidence_boost": 0.2,
+    "validation_threshold": 0.4
+  },
+  "performance": {
+    "async_processing": true,
+    "max_workers": 3,
+    "cache_results": true,
+    "cache_size_limit": 1000
+  },
+  "fallback": {
+    "enable_pattern_fallback": true,
+    "enable_jieba_fallback": true,
+    "min_confidence_threshold": 0.3
+  },
+  "output_format": {
+    "include_confidence": true,
+    "include_model_sources": true,
+    "include_dictionary_info": true,
+    "max_characters": 20,
+    "sort_by_confidence": true
+  },
+  "logging": {
+    "level": "INFO",
+    "log_file": "./nlp_pipeline.log",
+    "log_performance": true
+  }
+}

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flash Drive Dialogue</title>
+    <style>
+        body {
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        .flash-drive {
+            width: 300px;
+            height: 120px;
+            background: linear-gradient(135deg, #e0e0e0 60%, #b0b0b0 100%);
+            border-radius: 30px 30px 10px 10px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            position: relative;
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .port {
+            width: 60px;
+            height: 20px;
+            background: #888;
+            border-radius: 4px;
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .dialogue {
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 20px;
+            width: 320px;
+            min-height: 120px;
+            margin-bottom: 20px;
+            font-size: 1rem;
+            color: #222;
+            white-space: pre-wrap;
+        }
+        button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            background: #4a90e2;
+            color: #fff;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #357ab8;
+        }
+    </style>
+</head>
+<body>
+    <div class="flash-drive">
+        <div style="font-weight:bold; font-size:1.2em;">USB Flash Drive</div>
+        <div class="port"></div>
+    </div>
+    <textarea id="input-text" placeholder="請貼上文章..." style="width:320px; height:100px; margin-bottom:16px; border-radius:8px; border:1px solid #ccc; padding:10px; font-size:1rem;"></textarea>
+    <div class="dialogue" id="dialogue-output">Output will appear here...</div>
+    <button onclick="fetchDialogue()">Run Dialogue</button>
+    <script>
+        function fetchDialogue() {
+            const outputDiv = document.getElementById('dialogue-output');
+            const inputText = document.getElementById('input-text').value;
+            outputDiv.textContent = 'Running...';
+            fetch('http://127.0.0.1:5050/run', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: inputText })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.output) {
+                    outputDiv.textContent = data.output;
+                } else if (data.error) {
+                    outputDiv.textContent = 'Error: ' + data.error + '\n' + (data.output || '');
+                } else {
+                    outputDiv.textContent = 'Unknown error.';
+                }
+            })
+            .catch(err => {
+                outputDiv.textContent = 'Failed to fetch: ' + err;
+            });
+        }
+    </script>
+</body>
+</html> 

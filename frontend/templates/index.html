@@ -21,8 +21,7 @@
             <div class="panel-header">
                 <h3>📄 文本內容</h3>
                 <div class="text-actions">
-                    <button id="load-sample-btn" class="btn btn--sm btn--secondary">載入範例</button>
-                    <button id="clear-text-btn" class="btn btn--sm btn--outline">清除</button>
+                    <button id="clear-text-btn" class="btn btn--sm btn--outline">清除文本</button>
                 </div>
             </div>
             
@@ -30,10 +29,15 @@
                 <textarea 
                     id="text-input" 
                     class="text-input" 
-                    placeholder="請輸入您的文本內容...
+                    placeholder="請輸入您的文本內容進行角色關係分析...
 
-例如：
-一天傍晚，森林裡的兔子小白跑到河邊，興奮地喊：「大家快來！今晚我們舉辦一場音樂會！」..."></textarea>
+支持分析：
+• 小說故事片段
+• 新聞報導內容  
+• 對話記錄文本
+• 任何包含人物角色的中文文本
+
+系統將自動識別人物、分析關係並建立網絡圖。"></textarea>
                 <div class="input-actions">
                     <button id="analyze-text-btn" class="btn btn--primary">🔍 開始分析</button>
                     <div class="char-count" id="char-count">0 字元</div>
@@ -54,24 +58,38 @@
             </div>
         </div>
 
-        <!-- 右側：關係網絡圖 -->
+        <!-- 右側：人物信息表格 -->
         <div class="right-panel">
             <div class="visualization-header">
-                <h3>🕸️ 人物關係網絡</h3>
+                <h3>👥 人物信息表格</h3>
                 <div class="view-controls">
-                    <button id="reset-layout-btn" class="btn btn--sm btn--outline">重設佈局</button>
+                    <button id="export-table-btn" class="btn btn--sm btn--outline">匯出表格</button>
+                    <button id="sort-by-importance-btn" class="btn btn--sm btn--secondary">按重要性排序</button>
                 </div>
             </div>
             
-            <div id="network-container" class="network-container">
-                <div class="network-placeholder" id="network-placeholder">
-                    <div class="placeholder-icon">🕸️</div>
+            <div id="character-table-container" class="character-table-container">
+                <div class="table-placeholder" id="table-placeholder">
+                    <div class="placeholder-icon">📊</div>
                     <div class="placeholder-text">
-                        <h3>人物關係網絡</h3>
-                        <p>輸入文本並點擊「開始分析」以查看人物關係圖</p>
+                        <h3>人物信息表格</h3>
+                        <p>輸入文本並點擊「開始分析」以查看詳細人物信息</p>
                     </div>
                 </div>
-                <svg id="network-svg" class="network-svg"></svg>
+                
+                <div id="character-table" class="character-table-wrapper" style="display: none;">
+                    <table class="character-table">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="name">人物名稱 <span class="sort-arrow"></span></th>
+                                <th class="sortable" data-sort="description">描述</th>
+                                <th>人物行為</th>
+                            </tr>
+                        </thead>
+                        <tbody id="character-table-body">
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>

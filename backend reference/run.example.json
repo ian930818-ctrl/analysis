@@ -1,0 +1,44 @@
+{
+  "input_file": "input.txt",
+  "default_model_id": "openai_gpt-3.5",
+  "temperature": 0.3,
+  "steps": [
+    {
+      "label": "intro",
+      "type": "chat",
+      "template": "你是一位專業家事社工，請根據以下逐字稿內容，協助我撰寫一份標準的社工紀錄報告。請依照指示逐段產出，並注意保持書面語、語氣中立、不加評論。逐字稿如下：{input}"
+    },
+    {
+      "label": "main_issue",
+      "type": "text",
+      "question": "請根據逐字稿內容撰寫【一、主述問題】段落，內容需以第三人稱轉述案主來意或訪談開場所提之情況。避免主觀評論與冗長引述。",
+      "format": "一、主述問題\n案主表示＿＿＿＿＿＿。案主因＿＿＿＿＿＿而接受訪談。"
+    },
+    {
+      "label": "family_background",
+      "type": "text",
+      "question": "請根據逐字稿內容撰寫【二、個案概況(一)家庭】段落，使用條列方式描述案主與配偶關係、家庭結構與成員互動等。以『案主表示』或『案主自述』開頭為佳。",
+      "format": "二、個案概況\n(一)家庭\n1. …\n2. …\n3. …"
+    },
+    {
+      "label": "children_issues",
+      "type": "text",
+      "question": "請根據逐字稿內容撰寫【(二)子女議題】段落，說明親子互動、照顧方式、子女情緒或特殊狀況，使用條列方式。",
+      "format": "(二)子女議題\n1. …\n2. …\n3. …",
+      "model_id": "openai_gpt-4o"
+    },
+    {
+      "label": "litigation",
+      "type": "text",
+      "question": "請根據逐字稿內容撰寫【(三)訴訟】段落，描述案主提及的訴訟現況與立場，包括訴訟策略、律師、程序等。使用條列方式。",
+      "format": "(三)訴訟\n1. …\n2. …\n3. …",
+      "model_id": "ollama_llama3.2"
+    },
+    {
+      "label": "review_summary",
+      "type": "text",
+      "question": "請根據上述內容撰寫簡短【三、社工評估】摘要，語氣務必保持中立、客觀，描述案主現階段重點需求與未見特殊狀況。",
+      "format": "三、社工評估\n案主＿＿＿＿。目前未見重大風險，主要聚焦於＿＿＿＿。"
+    }
+  ]
+}

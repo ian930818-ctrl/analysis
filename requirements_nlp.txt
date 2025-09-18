@@ -1,0 +1,27 @@
+# Advanced NLP Dependencies for Chinese Character Analysis
+transformers>=4.30.0
+torch>=2.0.0
+torchcrf>=1.1.0
+ckip-transformers>=0.3.2
+datasets>=2.14.0
+accelerate>=0.20.0
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+tqdm>=4.65.0
+wandb>=0.15.0  # For experiment tracking
+tokenizers>=0.13.0
+evaluate>=0.4.0
+
+# Chinese-specific NLP libraries
+jieba>=0.42.1
+pkuseg>=0.0.25
+hanlp>=2.1.0
+opencc-python-reimplemented>=0.1.7
+
+# Data processing
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+regex>=2023.6.3

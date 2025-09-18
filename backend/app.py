@@ -1,12 +1,19 @@
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
-import jieba
-import jieba.posseg as pseg
+import json
 import re
-from collections import Counter
+import anthropic
+import os
 
 app = Flask(__name__, template_folder='../frontend/templates', static_folder='../frontend/static')
 CORS(app)
+
+# 初始化Claude API
+CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
+if not CLAUDE_API_KEY:
+    print("警告: 未設置CLAUDE_API_KEY環境變量")
+    CLAUDE_API_KEY = ""
+claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY) if CLAUDE_API_KEY else None
 
 @app.route('/')
 def home():
@@ -14,7 +21,7 @@ def home():
 
 @app.route('/api/hello', methods=['GET'])
 def hello_api():
-    return jsonify({"message": "Hello from backend!"})
+    return jsonify({"message": "Hello from LLM-integrated backend!"})
 
 @app.route('/api/data', methods=['POST'])
 def receive_data():
@@ -23,232 +30,306 @@ def receive_data():
 
 @app.route('/api/analyze-text', methods=['POST'])
 def analyze_text():
-    data = request.get_json()
-    text = data.get('text', '')
-    
-    if not text.strip():
-        return jsonify({"error": "No text provided"}), 400
-    
-    # Simple character extraction
-    characters = extract_characters(text)
-    relationships = generate_relationships(text, characters)
-    
-    return jsonify({
-        "characters": characters,
-        "relationships": relationships,
-        "status": "success"
-    })
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        manual_corrections = data.get('manual_corrections', {})
+        
+        print(f"[DEBUG] 收到分析請求，文本長度: {len(text)}")
+        print(f"[DEBUG] 文本前100字符: {text[:100]}...")
+        
+        if not text.strip():
+            return jsonify({"error": "No text provided"}), 400
+        
+        # 使用Claude API進行人物提取
+        print("[DEBUG] 開始Claude人物提取...")
+        characters = extract_characters_with_claude(text)
+        print(f"[DEBUG] Claude提取到 {len(characters)} 個人物")
+        
+        # 顯示提取到的人物名稱
+        if characters:
+            names = [char['name'] for char in characters]
+            print(f"[DEBUG] 識別的人物: {', '.join(names)}")
+        
+        # Apply manual corrections if provided
+        if manual_corrections:
+            characters = apply_manual_corrections(characters, manual_corrections)
+        
+        # 使用Claude API進行關係分析
+        print("[DEBUG] 開始Claude關係分析...")
+        relationships = generate_relationships_with_claude(text, characters)
+        print(f"[DEBUG] 生成了 {len(relationships)} 個關係")
+        
+        result = {
+            "characters": characters,
+            "relationships": relationships,
+            "status": "success",
+            "corrections_applied": len(manual_corrections) > 0,
+            "source": "claude_api"
+        }
+        
+        print(f"[DEBUG] 返回結果: {len(characters)} 個人物, {len(relationships)} 個關係")
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"[ERROR] 分析出錯: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"分析失敗: {str(e)}"}), 500
 
-def extract_characters(text):
-    """Advanced character extraction using hybrid approach"""
-    character_names = set()
-    
-    # Method 1: Enhanced regex patterns for various character types
+def extract_characters_with_claude(text):
+    """使用Claude API提取人物"""
+    if not claude_client:
+        print("[WARNING] Claude API未初始化，使用降級模式")
+        return simple_extract_characters(text)
+        
+    try:
+        prompt = f"""請分析以下文本，識別其中的人物角色。
+        
+請用JSON格式回應，只包含字符數組：
+{{"characters": ["人物1", "人物2", "人物3"]}}
+
+文本：{text}"""
+
+        response = claude_client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=1000,
+            temperature=0.1,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        response_text = response.content[0].text
+        print(f"[DEBUG] Claude人物回應: {response_text}")
+        
+        # 解析JSON
+        if "{" in response_text and "}" in response_text:
+            json_start = response_text.find("{")
+            json_end = response_text.rfind("}") + 1
+            json_text = response_text[json_start:json_end]
+            
+            parsed = json.loads(json_text)
+            character_names = parsed.get("characters", [])
+            
+            # 轉換為標準格式
+            characters = []
+            for i, name in enumerate(character_names):
+                characters.append({
+                    "id": f"char_{i}",
+                    "name": name,
+                    "description": f"{name} - Claude識別的人物",
+                    "importance": 3,
+                    "frequency": text.count(name),
+                    "confidence": 0.9,
+                    "source": "claude_api",
+                    "events": [],
+                    "attributes": [],
+                    "behaviors": []
+                })
+            
+            return characters
+        else:
+            print("[WARNING] Claude回應不包含JSON")
+            return []
+            
+    except Exception as e:
+        print(f"[ERROR] Claude人物提取失敗: {str(e)}")
+        # 降級到簡單正則提取
+        return simple_extract_characters(text)
+
+def generate_relationships_with_claude(text, characters):
+    """使用Claude API生成關係"""
+    if len(characters) < 2:
+        return []
+        
+    if not claude_client:
+        print("[WARNING] Claude API未初始化，無法生成關係")
+        return []
+        
+    try:
+        character_names = [char['name'] for char in characters]
+        prompt = f"""分析以下人物之間的關係：{', '.join(character_names)}
+
+請用JSON格式回應：
+{{"relationships": [{{"source": "人物1", "target": "人物2", "type": "朋友", "strength": 3}}]}}
+
+文本：{text}"""
+
+        response = claude_client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=1000,
+            temperature=0.1,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        
+        response_text = response.content[0].text
+        print(f"[DEBUG] Claude關係回應: {response_text}")
+        
+        # 解析JSON
+        if "{" in response_text and "}" in response_text:
+            json_start = response_text.find("{")
+            json_end = response_text.rfind("}") + 1
+            json_text = response_text[json_start:json_end]
+            
+            parsed = json.loads(json_text)
+            raw_relationships = parsed.get("relationships", [])
+            
+            # 轉換為標準格式
+            relationships = []
+            char_name_to_id = {char['name']: char['id'] for char in characters}
+            
+            for i, rel in enumerate(raw_relationships):
+                source_name = rel.get("source", "")
+                target_name = rel.get("target", "")
+                
+                source_id = char_name_to_id.get(source_name)
+                target_id = char_name_to_id.get(target_name)
+                
+                if source_id and target_id and source_id != target_id:
+                    relationships.append({
+                        "id": f"rel_{i}",
+                        "source": source_id,
+                        "target": target_id,
+                        "type": rel.get("type", "一般關係"),
+                        "strength": rel.get("strength", 3),
+                        "details": {
+                            "cooccurrence": 1,
+                            "interactions": ["Claude分析"],
+                            "emotional_tone": "中性"
+                        }
+                    })
+            
+            return relationships
+        else:
+            return []
+            
+    except Exception as e:
+        print(f"[ERROR] Claude關係分析失敗: {str(e)}")
+        return []
+
+def simple_extract_characters(text):
+    """簡單的正則表達式人物提取（降級模式）"""
+    characters = []
     patterns = [
-        # Traditional names
-        r'[一-龥]{2,4}(?=說|問|答|喊|笑|哭|想|看|聽|跑|走|來|去)',
-        # Names with titles
-        r'[一-龥]{1,3}(?:先生|小姐|博士|老師|師傅|大人|老爺|夫人)',
-        # Names with prefixes
-        r'(?:小|老|大)[一-龥]{1,3}',
-        # Animal characters
-        r'[一-龥]*(?:兔子|狐狸|松鼠|貓頭鷹|青蛙|熊|貓|狗|鳥|魚)[一-龥]*',
-        # Names in quotes or after specific words
-        r'(?:叫做|名叫|是)[一-龥]{2,4}',
-        # Family relations
-        r'[一-龥]{1,3}(?:爸爸|媽媽|哥哥|姐姐|弟弟|妹妹|爺爺|奶奶)',
+        r'([一-龥]{2,4})說',
+        r'([一-龥]{2,4})問',
+        r'([一-龥]+老師)',
+        r'(小[一-龥]{1,2})',
     ]
     
+    found_names = set()
     for pattern in patterns:
         matches = re.findall(pattern, text)
         for match in matches:
             name = match.strip()
-            if len(name) > 1 and len(name) <= 6:  # Reasonable name length
-                character_names.add(name)
+            if len(name) >= 2 and len(name) <= 4:
+                if name not in ['他們', '我們', '大家', '這個', '那個']:
+                    found_names.add(name)
     
-    # Method 2: Jieba word segmentation with POS tagging
-    words = pseg.cut(text)
-    for word, flag in words:
-        # Look for person names (nr) and other name-like tags
-        if flag in ['nr', 'nrt'] and len(word) >= 2:
-            character_names.add(word)
-        # Look for words that could be names before action verbs
-        elif flag in ['n', 'ns'] and len(word) >= 2 and len(word) <= 4:
-            if any(action in text[text.find(word):text.find(word)+20] 
-                   for action in ['說', '問', '答', '喊', '笑', '哭', '想', '看']):
-                character_names.add(word)
-    
-    # Method 3: Context-based extraction
-    # Find quoted speech and extract speakers
-    dialogue_pattern = r'([一-龥]{1,4})(?:說|問|答|喊|笑著說|哭著說)[:：]?[「『"]([^」』"]+)[」』"]'
-    dialogue_matches = re.findall(dialogue_pattern, text)
-    for speaker, _ in dialogue_matches:
-        if len(speaker) >= 2:
-            character_names.add(speaker)
-    
-    # Method 4: Frequency-based filtering and validation
-    validated_characters = []
-    for name in character_names:
-        # Count frequency
-        frequency = len(re.findall(re.escape(name), text))
-        
-        # Skip if too infrequent or contains common words
-        if frequency < 1:
-            continue
-            
-        # Skip common words that aren't likely to be names
-        skip_words = ['東西', '地方', '時候', '事情', '問題', '辦法', '樣子', '大家', '他們', '我們']
-        if name in skip_words:
-            continue
-            
-        # Calculate importance based on frequency and length
-        importance = min(5, max(1, frequency + len(name) // 2))
-        
-        validated_characters.append({
-            "name": name,
-            "frequency": frequency,
-            "importance": importance
-        })
-    
-    # Sort by frequency and importance
-    validated_characters.sort(key=lambda x: (x['frequency'], x['importance']), reverse=True)
-    
-    # Create final character objects
-    characters = []
-    for i, char_data in enumerate(validated_characters[:15]):  # Limit to top 15
+    for i, name in enumerate(sorted(found_names)):
+        frequency = text.count(name)
         characters.append({
             "id": f"char_{i}",
-            "name": char_data["name"],
-            "description": generate_character_description(char_data["name"], text),
-            "importance": char_data["importance"],
-            "frequency": char_data["frequency"]
+            "name": name,
+            "description": f"{name} - 簡單提取",
+            "importance": min(5, max(1, frequency)),
+            "frequency": frequency,
+            "confidence": 0.6,
+            "source": "fallback_regex",
+            "events": [],
+            "attributes": [],
+            "behaviors": []
         })
     
     return characters
 
-def generate_character_description(name, text=""):
-    """Generate intelligent character descriptions based on context"""
-    # Extract context around the character name
-    context_actions = []
-    sentences = re.split(r'[。！？\n]+', text)
+@app.route('/api/correct-characters', methods=['POST'])
+def correct_characters():
+    """Endpoint for manual character corrections"""
+    data = request.get_json()
+    original_characters = data.get('characters', [])
+    corrections = data.get('corrections', {})
     
-    for sentence in sentences:
-        if name in sentence:
-            # Extract actions associated with this character
-            action_patterns = [
-                r'{}.*?([說問答喊笑哭想看聽跑走來去做拿給])'.format(re.escape(name)),
-                r'{}.*?([是有會能]).*?([一-龥]{{1,3}})'.format(re.escape(name)),
-            ]
-            for pattern in action_patterns:
-                matches = re.findall(pattern, sentence)
-                context_actions.extend([match if isinstance(match, str) else ''.join(match) for match in matches])
+    corrected_characters = apply_manual_corrections(original_characters, corrections)
     
-    # Generate description based on context
-    if context_actions:
-        common_actions = Counter(context_actions).most_common(2)
-        action_desc = '、'.join([action[0] for action in common_actions])
-        return f'經常{action_desc}的角色'
-    
-    # Fallback to pattern-based descriptions
-    if any(animal in name for animal in ['兔子', '狐狸', '松鼠', '貓頭鷹', '青蛙', '熊', '貓', '狗', '鳥', '魚']):
-        return f'{name} - 動物角色'
-    elif any(title in name for title in ['博士', '先生', '小姐', '老師', '師傅']):
-        return f'{name} - 專業人士'
-    elif any(family in name for family in ['爸爸', '媽媽', '哥哥', '姐姐', '弟弟', '妹妹', '爺爺', '奶奶']):
-        return f'{name} - 家庭成員'
-    elif name.startswith('小'):
-        return f'{name} - 年輕角色'
-    elif name.startswith('老'):
-        return f'{name} - 年長角色'
-    else:
-        return f'{name} - 故事角色'
+    return jsonify({
+        "characters": corrected_characters,
+        "status": "success"
+    })
 
-def generate_relationships(text, characters):
-    """Advanced relationship analysis based on multiple factors"""
-    relationships = []
-    sentences = re.split(r'[。！？\n]+', text)
+def apply_manual_corrections(characters, corrections):
+    """Apply manual corrections to character list"""
+    corrected = []
     
-    for i, char1 in enumerate(characters):
-        for j, char2 in enumerate(characters[i+1:], i+1):
-            relationship_data = analyze_character_relationship(char1['name'], char2['name'], text, sentences)
+    for char in characters:
+        char_id = char['id']
+        char_name = char['name']
+        
+        # Check for corrections
+        if char_id in corrections:
+            correction = corrections[char_id]
             
-            if relationship_data['strength'] > 0:
-                relationships.append({
-                    "id": f"rel_{i}_{j}",
-                    "source": char1['id'],
-                    "target": char2['id'],
-                    "type": relationship_data['type'],
-                    "strength": relationship_data['strength'],
-                    "details": relationship_data['details']
-                })
+            if correction['action'] == 'remove':
+                continue  # Skip this character
+            elif correction['action'] == 'rename':
+                char['name'] = correction['new_name']
+                char['description'] = correction.get('new_description', char['description'])
+            elif correction['action'] == 'modify':
+                char.update(correction['updates'])
+        
+        corrected.append(char)
     
-    return relationships
+    # Add manually added characters
+    for correction in corrections.values():
+        if correction.get('action') == 'add':
+            new_char = {
+                'id': f"manual_{len(corrected)}",
+                'name': correction['name'],
+                'description': correction.get('description', f"{correction['name']} - 手動添加角色"),
+                'importance': correction.get('importance', 3),
+                'frequency': correction.get('frequency', 1),
+                'events': [],
+                'attributes': []
+            }
+            corrected.append(new_char)
+    
+    return corrected
 
-def analyze_character_relationship(name1, name2, text, sentences):
-    """Analyze relationship between two characters"""
-    cooccurrence = 0
-    interaction_types = []
-    emotional_context = []
-    
-    for sentence in sentences:
-        if name1 in sentence and name2 in sentence:
-            cooccurrence += 1
-            
-            # Analyze interaction types
-            if any(word in sentence for word in ['說', '問', '答', '對話', '交談']):
-                interaction_types.append('對話')
-            if any(word in sentence for word in ['一起', '共同', '合作', '幫助']):
-                interaction_types.append('合作')
-            if any(word in sentence for word in ['爭吵', '吵架', '生氣', '反對']):
-                interaction_types.append('衝突')
-            if any(word in sentence for word in ['朋友', '喜歡', '愛', '關心']):
-                interaction_types.append('友好')
-            if any(word in sentence for word in ['家人', '父子', '母女', '兄弟', '姐妹']):
-                interaction_types.append('家庭')
-                
-            # Analyze emotional context
-            if any(word in sentence for word in ['開心', '快樂', '高興', '笑']):
-                emotional_context.append('正面')
-            elif any(word in sentence for word in ['難過', '傷心', '生氣', '哭']):
-                emotional_context.append('負面')
-    
-    # Determine relationship type
-    if interaction_types:
-        most_common_interaction = Counter(interaction_types).most_common(1)[0][0]
-        relationship_type = most_common_interaction
-    else:
-        relationship_type = determine_relationship_type(name1, name2)
-    
-    # Calculate relationship strength
-    strength = min(5, max(1, cooccurrence))
-    if '合作' in interaction_types:
-        strength += 1
-    if '友好' in interaction_types:
-        strength += 1
-    if '衝突' in interaction_types:
-        strength = max(1, strength - 1)
-    
-    strength = min(5, strength)
-    
-    return {
-        'strength': strength,
-        'type': relationship_type,
-        'details': {
-            'cooccurrence': cooccurrence,
-            'interactions': list(set(interaction_types)),
-            'emotional_tone': Counter(emotional_context).most_common(1)[0][0] if emotional_context else '中性'
-        }
-    }
-
-def determine_relationship_type(name1, name2):
-    """Determine relationship type based on character names"""
-    if (('兔子' in name1 or '兔子' in name2) and 
-        ('狐狸' in name1 or '狐狸' in name2)):
-        return '合作夥伴'
-    elif '博士' in name1 or '博士' in name2:
-        return '師生'
-    else:
-        return '朋友'
+@app.route('/api/llm-status', methods=['GET'])
+def llm_status():
+    """檢查Claude API狀態"""
+    if not claude_client:
+        return jsonify({
+            "status": "error",
+            "message": "Claude API未初始化",
+            "fallback": "simple_extraction"
+        })
+        
+    try:
+        response = claude_client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=50,
+            temperature=0.0,
+            messages=[{"role": "user", "content": "測試"}]
+        )
+        
+        response_text = response.content[0].text if response.content else ""
+        
+        return jsonify({
+            "status": "loaded",
+            "model_type": "Claude API Direct Integration",
+            "model": "claude-3-5-sonnet-20241022",
+            "test_response_length": len(response_text)
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e),
+            "fallback": "simple_extraction"
+        })
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("🚀 Starting Claude-integrated Text Analysis System...")
+    print("📦 Direct Claude API integration")
+    print("🎯 Fallback mode: simple regex extraction")
+    
+    app.run(debug=True, host='0.0.0.0', port=5001)

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API測試頁面</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; }
+        button { padding: 10px 20px; margin: 10px 0; background: #007bff; color: white; border: none; cursor: pointer; }
+        .result { background: #f8f9fa; padding: 15px; margin: 10px 0; border: 1px solid #dee2e6; white-space: pre-wrap; }
+        .error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>人物分析API測試</h1>
+    
+    <h3>輸入測試文本：</h3>
+    <textarea id="testText" placeholder="請輸入要分析的文本...">小明是一個學生，他每天上課學習。今天小明和同學小華一起去圖書館讀書。小明很高興地說："我們一起努力學習吧！"王老師看到他們很滿意。</textarea>
+    
+    <button onclick="testAPI()">測試API</button>
+    <button onclick="clearResults()">清除結果</button>
+    
+    <h3>API響應結果：</h3>
+    <div id="result" class="result">等待測試...</div>
+    
+    <h3>提取的人物列表：</h3>
+    <div id="characters" class="result">等待分析...</div>
+
+    <script>
+        async function testAPI() {
+            const text = document.getElementById('testText').value;
+            const resultDiv = document.getElementById('result');
+            const charactersDiv = document.getElementById('characters');
+            
+            if (!text.trim()) {
+                resultDiv.innerHTML = '請輸入測試文本';
+                return;
+            }
+            
+            try {
+                console.log('發送測試文本:', text);
+                resultDiv.innerHTML = '正在分析...';
+                charactersDiv.innerHTML = '正在分析...';
+                
+                const response = await fetch('/api/analyze-text', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+                
+                console.log('響應狀態:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('API響應數據:', data);
+                    
+                    // 顯示完整響應
+                    resultDiv.innerHTML = JSON.stringify(data, null, 2);
+                    
+                    // 顯示人物列表
+                    const characters = data.characters || [];
+                    let charactersHTML = `<h4>發現 ${characters.length} 個人物：</h4>`;
+                    
+                    characters.forEach((char, index) => {
+                        charactersHTML += `
+                            <div style="border: 1px solid #ccc; margin: 10px 0; padding: 10px; border-radius: 5px;">
+                                <h5>${index + 1}. ${char.name}</h5>
+                                <p><strong>描述:</strong> ${char.description || '無'}</p>
+                                <p><strong>頻次:</strong> ${char.frequency || 1} | <strong>重要性:</strong> ${char.importance || 1} | <strong>信心:</strong> ${(char.confidence || 0.8).toFixed(2)}</p>
+                                <p><strong>事件:</strong> ${(char.events || []).map(e => e.type || '事件').join(', ') || '無'}</p>
+                                <p><strong>屬性:</strong> ${(char.attributes || []).map(a => a.type || a.value || '屬性').join(', ') || '無'}</p>
+                                <p><strong>行為:</strong> ${(char.behaviors || []).map(b => `${b.category}(${b.count})`).join(', ') || '無'}</p>
+                            </div>`;
+                    });
+                    
+                    charactersDiv.innerHTML = charactersHTML;
+                    
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `錯誤 ${response.status}: ${errorText}`;
+                    charactersDiv.innerHTML = '分析失敗';
+                }
+                
+            } catch (error) {
+                console.error('請求失敗:', error);
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `請求失敗: ${error.message}`;
+                charactersDiv.innerHTML = '請求失敗';
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('result').innerHTML = '等待測試...';
+            document.getElementById('result').className = 'result';
+            document.getElementById('characters').innerHTML = '等待分析...';
+        }
+    </script>
+</body>
+</html>

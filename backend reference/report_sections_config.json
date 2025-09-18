@@ -1,0 +1,138 @@
+{
+  "reportSections": [
+    {
+      "id": "basic_info",
+      "name": "基本資料",
+      "description": "案主基本資料、聯絡方式、身分證明等",
+      "category": "基礎資訊",
+      "icon": "pi-user",
+      "order": 1
+    },
+    {
+      "id": "family_situation", 
+      "name": "家庭狀況",
+      "description": "家庭成員、家庭結構、居住狀況、家庭關係等",
+      "category": "家庭與關係",
+      "icon": "pi-home",
+      "order": 2
+    },
+    {
+      "id": "economic_status",
+      "name": "經濟狀況", 
+      "description": "收入來源、經濟困難、福利資源、就業狀況等",
+      "category": "經濟與就業",
+      "icon": "pi-money-bill",
+      "order": 3
+    },
+    {
+      "id": "health_status",
+      "name": "健康狀況",
+      "description": "身心健康、醫療史、用藥情況、健康需求等", 
+      "category": "健康與醫療",
+      "icon": "pi-heart",
+      "order": 4
+    },
+    {
+      "id": "education_development",
+      "name": "教育發展",
+      "description": "學歷背景、學習狀況、職業技能、發展需求等",
+      "category": "教育與發展",
+      "icon": "pi-book",
+      "order": 5
+    },
+    {
+      "id": "social_relations",
+      "name": "社會關係",
+      "description": "人際關係、社會支持網絡、社區參與、朋友圈等",
+      "category": "社會支持",
+      "icon": "pi-users",
+      "order": 6
+    },
+    {
+      "id": "living_environment",
+      "name": "生活環境",
+      "description": "居住環境、社區資源、安全狀況、生活品質等",
+      "category": "環境與資源",
+      "icon": "pi-building",
+      "order": 7
+    },
+    {
+      "id": "problem_analysis", 
+      "name": "問題分析",
+      "description": "主述問題、問題成因、影響評估、風險評估等",
+      "category": "問題評估",
+      "icon": "pi-exclamation-triangle",
+      "order": 8
+    },
+    {
+      "id": "strengths_resources",
+      "name": "優勢與資源",
+      "description": "個人優勢、家庭資源、社會資源、潛在支持等",
+      "category": "優勢評估",
+      "icon": "pi-star",
+      "order": 9
+    },
+    {
+      "id": "goals_objectives",
+      "name": "目標與期待",
+      "description": "案主目標、期待改變、短期目標、長期願景等",
+      "category": "目標設定",
+      "icon": "pi-flag",
+      "order": 10
+    },
+    {
+      "id": "service_recommendations",
+      "name": "服務建議",
+      "description": "服務方向、具體建議、轉介資源、介入策略等",
+      "category": "服務規劃",
+      "icon": "pi-cog",
+      "order": 11
+    },
+    {
+      "id": "risk_safety",
+      "name": "風險與安全",
+      "description": "安全風險、保護因子、危機處理、安全計劃等",
+      "category": "風險管理",
+      "icon": "pi-shield",
+      "order": 12
+    }
+  ],
+  "categories": [
+    {
+      "id": "basic",
+      "name": "基礎資訊",
+      "color": "blue",
+      "sections": ["basic_info"]
+    },
+    {
+      "id": "family_social",
+      "name": "家庭與社會",
+      "color": "green", 
+      "sections": ["family_situation", "social_relations"]
+    },
+    {
+      "id": "life_conditions",
+      "name": "生活條件",
+      "color": "orange",
+      "sections": ["economic_status", "health_status", "living_environment"]
+    },
+    {
+      "id": "development",
+      "name": "發展與成長",
+      "color": "purple",
+      "sections": ["education_development", "strengths_resources", "goals_objectives"]
+    },
+    {
+      "id": "intervention",
+      "name": "介入與服務",
+      "color": "teal",
+      "sections": ["problem_analysis", "service_recommendations", "risk_safety"]
+    }
+  ],
+  "defaultTemplate": {
+    "name": "通用社工評估報告",
+    "model": "claude_sonnet",
+    "defaultSections": ["basic_info", "family_situation", "problem_analysis", "service_recommendations"],
+    "recommendedSections": ["basic_info", "family_situation", "problem_analysis", "strengths_resources", "service_recommendations", "risk_safety"]
+  }
+}

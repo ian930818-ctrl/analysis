@@ -7,18 +7,7 @@ class TextAnalyzerMVP {
         this.svg = null;
         
         // Sample text data
-        this.sampleText = `一天傍晚，森林裡的兔子小白跑到河邊，興奮地喊：「大家快來！今晚我們舉辦一場音樂會！」
-
-狐狸小赤甩著尾巴說：「音樂會？我不會樂器耶。」
-「沒關係！」貓頭鷹博士拍拍翅膀說，「你可以負責主持。」
-
-松鼠小栗搬來一大堆橡果當鼓，熊大用低沉的聲音當貝斯，甚至連小青蛙們都在河邊「呱呱」和聲。
-
-當月亮升起，音樂響徹整個森林。兔子小白唱歌、狐狸小赤講笑話，松鼠和熊大打著節奏，大家一起跳舞。
-
-最後，貓頭鷹博士說：「這場音樂會告訴我們，只要團結，就能創造美好的事情。」
-
-森林裡傳來笑聲與掌聲，像星光一樣閃爍。`;
+        // 移除範例文本 - 純淨分析環境
         
         this.init();
     }
@@ -51,9 +40,9 @@ class TextAnalyzerMVP {
         // Text input related events
         const textInput = document.getElementById('text-input');
         const analyzeBtn = document.getElementById('analyze-text-btn');
-        const loadSampleBtn = document.getElementById('load-sample-btn');
         const clearTextBtn = document.getElementById('clear-text-btn');
-        const resetLayoutBtn = document.getElementById('reset-layout-btn');
+        const exportTableBtn = document.getElementById('export-table-btn');
+        const sortByImportanceBtn = document.getElementById('sort-by-importance-btn');
         
         if (textInput) {
             textInput.addEventListener('input', () => {
@@ -66,16 +55,16 @@ class TextAnalyzerMVP {
             analyzeBtn.addEventListener('click', () => this.analyzeText());
         }
         
-        if (loadSampleBtn) {
-            loadSampleBtn.addEventListener('click', () => this.loadSampleText());
-        }
-        
         if (clearTextBtn) {
             clearTextBtn.addEventListener('click', () => this.clearText());
         }
         
-        if (resetLayoutBtn) {
-            resetLayoutBtn.addEventListener('click', () => this.resetLayout());
+        if (exportTableBtn) {
+            exportTableBtn.addEventListener('click', () => this.exportTable());
+        }
+        
+        if (sortByImportanceBtn) {
+            sortByImportanceBtn.addEventListener('click', () => this.sortByImportance());
         }
     }
 
@@ -121,13 +110,8 @@ class TextAnalyzerMVP {
     }
 
     loadSampleText() {
-        const textInput = document.getElementById('text-input');
-        if (textInput) {
-            textInput.value = this.sampleText;
-            this.updateCharCount();
-            this.updateTextPreview();
-            this.showToast('範例文本已載入', 'success');
-        }
+        // 功能已移除 - 鼓勵使用者輸入真實文本
+        this.showToast('請輸入您自己的文本進行分析', 'info');
     }
 
     clearText() {
@@ -140,17 +124,70 @@ class TextAnalyzerMVP {
             this.updateCharCount();
             this.updateTextPreview();
             this.updateUI();
-            this.clearVisualization();
+            this.clearTable();
             this.showToast('文本已清除', 'info');
         }
     }
 
+    exportTable() {
+        if (this.characters.length === 0) {
+            this.showToast('無資料可匯出，請先分析文本', 'warning');
+            return;
+        }
+
+        // Create CSV content - simplified to only include name, description and behavior
+        const headers = ['人物名稱', '描述', '人物行為'];
+        const csvContent = [
+            headers.join(','),
+            ...this.characters.map(char => [
+                `"${char.name}"`,
+                `"${char.description || '未知'}"`,
+                `"${(char.behaviors || []).map(b => `${b.category}:${(b.actions || []).join('，')}`).join('; ')}"`
+            ].join(','))
+        ].join('\n');
+
+        // Create and download file
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `人物分析結果_${new Date().toISOString().split('T')[0]}.csv`;
+        link.click();
+        
+        this.showToast('表格已匯出為 CSV 檔案', 'success');
+    }
+
+    sortByImportance() {
+        if (this.characters.length === 0) {
+            this.showToast('無資料可排序，請先分析文本', 'warning');
+            return;
+        }
+
+        this.characters.sort((a, b) => (b.importance || 1) - (a.importance || 1));
+        this.renderCharacterTable();
+        this.showToast('已按重要性排序', 'success');
+    }
+
+    clearTable() {
+        const tablePlaceholder = document.getElementById('table-placeholder');
+        const characterTable = document.getElementById('character-table');
+        
+        if (tablePlaceholder) tablePlaceholder.style.display = 'flex';
+        if (characterTable) characterTable.style.display = 'none';
+    }
+
     async analyzeText() {
+        // 確保獲取最新的文本內容
+        const textInput = document.getElementById('text-input');
+        if (textInput) {
+            this.currentText = textInput.value.trim();
+        }
+        
         if (!this.currentText.trim()) {
             this.showToast('請先輸入文本', 'warning');
             return;
         }
         
+        console.log('分析文本:', this.currentText.substring(0, 100) + '...');
         this.showLoading(true, '正在分析文本...');
         
         try {
@@ -165,12 +202,16 @@ class TextAnalyzerMVP {
             
             if (response.ok) {
                 const data = await response.json();
+                console.log('後端響應數據:', data);
+                
                 this.characters = data.characters || [];
                 this.relationships = data.relationships || [];
                 
+                console.log('提取的人物:', this.characters);
+                console.log('提取的關係:', this.relationships);
+                
                 this.updateUI();
-                this.updateVisualization();
-                this.showToast('文本分析完成', 'success');
+                this.showToast(`文本分析完成，發現 ${this.characters.length} 個人物`, 'success');
             } else {
                 throw new Error('分析失敗');
             }
@@ -214,13 +255,7 @@ class TextAnalyzerMVP {
             }
         });
         
-        // Manual addition for known characters
-        const knownCharacters = ['兔子小白', '狐狸小赤', '貓頭鷹博士', '松鼠小栗', '熊大', '小青蛙們'];
-        knownCharacters.forEach(name => {
-            if (text.includes(name) && !characterNames.includes(name)) {
-                characterNames.push(name);
-            }
-        });
+        // No hardcoded characters - pure NLP approach
         
         // Create character objects
         this.characters = characterNames.map((name, index) => {
@@ -294,8 +329,145 @@ class TextAnalyzerMVP {
     }
 
     updateUI() {
+        console.log('更新UI，人物數量:', this.characters.length);
         this.updateTextStats();
+        this.renderCharacterTable();
         this.renderCharacterList();
+        
+        // 強制重新渲染表格
+        if (this.characters.length > 0) {
+            console.log('顯示表格，隱藏佔位符');
+            const tablePlaceholder = document.getElementById('table-placeholder');
+            const characterTable = document.getElementById('character-table');
+            
+            if (tablePlaceholder) tablePlaceholder.style.display = 'none';
+            if (characterTable) characterTable.style.display = 'block';
+        }
+    }
+
+    renderCharacterTable() {
+        console.log('開始渲染表格，人物數量:', this.characters.length);
+        const tablePlaceholder = document.getElementById('table-placeholder');
+        const characterTable = document.getElementById('character-table');
+        const tableBody = document.getElementById('character-table-body');
+        
+        if (!tableBody) {
+            console.error('找不到表格主體元素');
+            return;
+        }
+        
+        if (this.characters.length === 0) {
+            console.log('無人物數據，顯示佔位符');
+            if (tablePlaceholder) tablePlaceholder.style.display = 'flex';
+            if (characterTable) characterTable.style.display = 'none';
+            return;
+        }
+        
+        // Hide placeholder and show table
+        if (tablePlaceholder) tablePlaceholder.style.display = 'none';
+        if (characterTable) characterTable.style.display = 'block';
+        
+        // Generate table rows - simplified to only show name, description and behavior
+        tableBody.innerHTML = this.characters.map(character => `
+            <tr data-id="${character.id}">
+                <td class="character-name">${character.name}</td>
+                <td class="character-description">${character.description || '未知'}</td>
+                <td class="behavior-list">${this.generateBehaviorTags(character.behaviors || [])}</td>
+            </tr>
+        `).join('');
+        
+        // Add sorting functionality
+        this.addTableSorting();
+    }
+
+    generateImportanceStars(importance) {
+        const stars = '★'.repeat(Math.min(5, Math.max(1, importance)));
+        const emptyStars = '☆'.repeat(5 - stars.length);
+        return `<span class="importance-stars">${stars}${emptyStars}</span>`;
+    }
+
+    getConfidenceClass(confidence) {
+        if (confidence >= 0.8) return 'confidence-high';
+        if (confidence >= 0.6) return 'confidence-medium';
+        return 'confidence-low';
+    }
+
+    generateEventTags(events) {
+        if (!events || events.length === 0) return '<span class="text-muted">無</span>';
+        return events.slice(0, 3).map(event => 
+            `<span class="event-item">${event.type || '事件'}</span>`
+        ).join(' ');
+    }
+
+    generateAttributeTags(attributes) {
+        if (!attributes || attributes.length === 0) return '<span class="text-muted">無</span>';
+        return attributes.slice(0, 3).map(attr => 
+            `<span class="attribute-item">${attr.type || attr.value || '屬性'}</span>`
+        ).join(' ');
+    }
+    
+    generateBehaviorTags(behaviors) {
+        if (!behaviors || behaviors.length === 0) return '<span class="text-muted">無行為記錄</span>';
+        
+        return behaviors.slice(0, 3).map(behavior => {
+            const category = behavior.category || '行為';
+            const count = behavior.count || 1;
+            const actions = behavior.actions || [];
+            
+            // 創建帶有詳細信息的行為標籤
+            const firstAction = actions.length > 0 ? actions[0] : '未知行為';
+            const tooltip = actions.slice(0, 3).join('；');
+            
+            return `<span class="behavior-item" title="${tooltip}">${category}(${count})</span>`;
+        }).join(' ');
+    }
+
+    addTableSorting() {
+        const sortableHeaders = document.querySelectorAll('.character-table th.sortable');
+        sortableHeaders.forEach(header => {
+            header.addEventListener('click', () => {
+                const sortBy = header.getAttribute('data-sort');
+                this.sortTable(sortBy, header);
+            });
+        });
+    }
+
+    sortTable(sortBy, headerElement) {
+        const currentSort = headerElement.classList.contains('sort-asc') ? 'asc' : 
+                           headerElement.classList.contains('sort-desc') ? 'desc' : 'none';
+        
+        // Remove all sort classes
+        document.querySelectorAll('.character-table th').forEach(th => {
+            th.classList.remove('sort-asc', 'sort-desc');
+        });
+        
+        let newSort = 'asc';
+        if (currentSort === 'asc') newSort = 'desc';
+        else if (currentSort === 'desc') newSort = 'asc';
+        
+        headerElement.classList.add(`sort-${newSort}`);
+        
+        // Sort characters array
+        this.characters.sort((a, b) => {
+            let aVal = a[sortBy] || '';
+            let bVal = b[sortBy] || '';
+            
+            // Handle different data types
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+                return newSort === 'asc' ? aVal - bVal : bVal - aVal;
+            } else {
+                aVal = String(aVal).toLowerCase();
+                bVal = String(bVal).toLowerCase();
+                if (newSort === 'asc') {
+                    return aVal.localeCompare(bVal);
+                } else {
+                    return bVal.localeCompare(aVal);
+                }
+            }
+        });
+        
+        // Re-render table
+        this.renderCharacterTable();
     }
 
     renderCharacterList() {
@@ -307,12 +479,17 @@ class TextAnalyzerMVP {
             return;
         }
         
-        characterList.innerHTML = this.characters.map(character => `
-            <div class="character-item" data-id="${character.id}">
-                <strong>${character.name}</strong>
-                <small>(${character.description}, 重要性: ${character.importance}/5)</small>
+        characterList.innerHTML = `
+            <div class="character-summary">
+                <h4>人物摘要 (共 ${this.characters.length} 個角色)</h4>
+                ${this.characters.map(character => `
+                    <div class="character-item" data-id="${character.id}">
+                        <strong>${character.name}</strong>
+                        <small>(信心: ${(character.confidence || 0.8).toFixed(2)}, 頻次: ${character.frequency || 1})</small>
+                    </div>
+                `).join('')}
             </div>
-        `).join('');
+        `;
     }
 
     initializeVisualization() {
