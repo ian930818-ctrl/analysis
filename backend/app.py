@@ -8,11 +8,30 @@ import os
 app = Flask(__name__, template_folder='../frontend/templates', static_folder='../frontend/static')
 CORS(app)
 
+# 讀取配置文件
+def load_config():
+    try:
+        with open('config.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("配置文件 config.json 不存在，使用環境變量")
+        return None
+    except json.JSONDecodeError:
+        print("配置文件格式錯誤，使用環境變量")
+        return None
+
+config = load_config()
+
 # 初始化Claude API
-CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
-if not CLAUDE_API_KEY:
-    print("警告: 未設置CLAUDE_API_KEY環境變量")
-    CLAUDE_API_KEY = ""
+if config and config.get('claude_api_key'):
+    CLAUDE_API_KEY = config['claude_api_key']
+    print("✅ 從 config.json 讀取 API 密鑰")
+else:
+    CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
+    if not CLAUDE_API_KEY:
+        print("警告: 未設置CLAUDE_API_KEY環境變量")
+        CLAUDE_API_KEY = ""
+
 claude_client = anthropic.Anthropic(api_key=CLAUDE_API_KEY) if CLAUDE_API_KEY else None
 
 @app.route('/')

@@ -5,6 +5,9 @@
 .env.test.local
 .env.production.local
 
+# Configuration files with secrets
+config.json
+
 # Python
 __pycache__/
 *.py[cod]
