@@ -25,7 +25,7 @@ config = load_config()
 # 初始化Claude API
 if config and config.get('claude_api_key'):
     CLAUDE_API_KEY = config['claude_api_key']
-    print("✅ 從 config.json 讀取 API 密鑰")
+    print("[OK] 從 config.json 讀取 API 密鑰")
 else:
     CLAUDE_API_KEY = os.environ.get('CLAUDE_API_KEY')
     if not CLAUDE_API_KEY:
@@ -347,8 +347,8 @@ def llm_status():
         })
 
 if __name__ == '__main__':
-    print("🚀 Starting Claude-integrated Text Analysis System...")
-    print("📦 Direct Claude API integration")
-    print("🎯 Fallback mode: simple regex extraction")
+    print("[START] Starting Claude-integrated Text Analysis System...")
+    print("[INFO] Direct Claude API integration")
+    print("[INFO] Fallback mode: simple regex extraction")
     
     app.run(debug=True, host='0.0.0.0', port=5001)
