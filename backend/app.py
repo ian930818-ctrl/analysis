@@ -97,59 +97,85 @@ def analyze_text():
         return jsonify({"error": f"分析失敗: {str(e)}"}), 500
 
 def extract_characters_with_claude(text):
-    """使用Claude API提取人物"""
+    """使用Claude API提取人物和詳細行為"""
     if not claude_client:
         print("[WARNING] Claude API未初始化，使用降級模式")
         return simple_extract_characters(text)
-        
+
     try:
-        prompt = f"""請分析以下文本，識別其中的人物角色。
-        
-請用JSON格式回應，只包含字符數組：
-{{"characters": ["人物1", "人物2", "人物3"]}}
+        prompt = f"""請仔細分析以下文本，識別其中的人物角色，並分析每個人物的行為、動作和與其他人物的關係。
+
+請用JSON格式回應，包含詳細信息：
+{{
+  "characters": [
+    {{
+      "name": "人物名稱",
+      "description": "人物的簡短描述或身份",
+      "behaviors": [
+        "具體描述這個人物做了什麼事情",
+        "描述與其他人物的互動",
+        "其他重要行為或特徵"
+      ],
+      "relationships": [
+        "與某某人的關係：朋友/同事/家人等",
+        "與某某人一起做了什麼事情"
+      ]
+    }}
+  ]
+}}
+
+請確保behaviors欄位詳細描述人物的具體行為和動作，relationships欄位描述與其他人物的關係和互動。
 
 文本：{text}"""
 
         response = claude_client.messages.create(
             model="claude-3-5-sonnet-20241022",
-            max_tokens=1000,
+            max_tokens=2000,
             temperature=0.1,
             messages=[{"role": "user", "content": prompt}]
         )
-        
+
         response_text = response.content[0].text
         print(f"[DEBUG] Claude人物回應: {response_text}")
-        
+
         # 解析JSON
         if "{" in response_text and "}" in response_text:
             json_start = response_text.find("{")
             json_end = response_text.rfind("}") + 1
             json_text = response_text[json_start:json_end]
-            
+
             parsed = json.loads(json_text)
-            character_names = parsed.get("characters", [])
-            
+            raw_characters = parsed.get("characters", [])
+
             # 轉換為標準格式
             characters = []
-            for i, name in enumerate(character_names):
+            for i, char_data in enumerate(raw_characters):
+                name = char_data.get("name", f"人物{i+1}")
+                description = char_data.get("description", f"{name} - Claude識別的人物")
+                behaviors = char_data.get("behaviors", [])
+                relationships = char_data.get("relationships", [])
+
+                # 合併行為和關係信息
+                all_behaviors = behaviors + relationships
+
                 characters.append({
                     "id": f"char_{i}",
                     "name": name,
-                    "description": f"{name} - Claude識別的人物",
+                    "description": description,
                     "importance": 3,
                     "frequency": text.count(name),
                     "confidence": 0.9,
                     "source": "claude_api",
                     "events": [],
                     "attributes": [],
-                    "behaviors": []
+                    "behaviors": all_behaviors
                 })
-            
+
             return characters
         else:
             print("[WARNING] Claude回應不包含JSON")
             return []
-            
+
     except Exception as e:
         print(f"[ERROR] Claude人物提取失敗: {str(e)}")
         # 降級到簡單正則提取

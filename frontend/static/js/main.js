@@ -408,18 +408,29 @@ class TextAnalyzerMVP {
     
     generateBehaviorTags(behaviors) {
         if (!behaviors || behaviors.length === 0) return '<span class="text-muted">無行為記錄</span>';
-        
-        return behaviors.slice(0, 3).map(behavior => {
-            const category = behavior.category || '行為';
-            const count = behavior.count || 1;
-            const actions = behavior.actions || [];
-            
-            // 創建帶有詳細信息的行為標籤
-            const firstAction = actions.length > 0 ? actions[0] : '未知行為';
-            const tooltip = actions.slice(0, 3).join('；');
-            
-            return `<span class="behavior-item" title="${tooltip}">${category}(${count})</span>`;
-        }).join(' ');
+
+        // 檢查behaviors是字符串數組還是對象數組
+        if (typeof behaviors[0] === 'string') {
+            // 處理字符串數組 - 新的Claude API格式
+            return behaviors.slice(0, 5).map((behaviorText, index) => {
+                // 截短長文本以適應表格顯示
+                const displayText = behaviorText.length > 30 ?
+                    behaviorText.substring(0, 30) + '...' : behaviorText;
+                return `<div class="behavior-item" title="${behaviorText}">${displayText}</div>`;
+            }).join('');
+        } else {
+            // 處理對象數組 - 原有格式
+            return behaviors.slice(0, 3).map(behavior => {
+                const category = behavior.category || '行為';
+                const count = behavior.count || 1;
+                const actions = behavior.actions || [];
+
+                const firstAction = actions.length > 0 ? actions[0] : '未知行為';
+                const tooltip = actions.slice(0, 3).join('；');
+
+                return `<span class="behavior-item" title="${tooltip}">${category}(${count})</span>`;
+            }).join(' ');
+        }
     }
 
     addTableSorting() {
