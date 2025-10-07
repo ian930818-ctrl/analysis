@@ -6,6 +6,10 @@
     <title>可編輯人物關係分析工具</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <!-- PDF.js for PDF reading support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Mammoth.js for Word document support -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
     <header class="header">
@@ -25,19 +29,35 @@
                 </div>
             </div>
             
+            <!-- 多格式文件上傳 -->
+            <div class="simple-upload-section">
+                <div class="upload-button-group">
+                    <input type="file" id="file-input" class="hidden-file-input" accept=".txt,.pdf,.doc,.docx,.rtf" />
+                    <button class="btn btn--outline" id="upload-file-btn">📁 選擇文件上傳</button>
+                    <span class="upload-info">支援 .txt, .pdf, .doc, .docx, .rtf 格式，內容將直接載入到文本框</span>
+                </div>
+                <div class="format-support">
+                    <small>
+                        📄 支援格式：文本文件 (.txt) | PDF文檔 (.pdf) | Word文檔 (.doc, .docx) | RTF文檔 (.rtf)
+                    </small>
+                </div>
+            </div>
+
             <div class="text-input-section">
-                <textarea 
-                    id="text-input" 
-                    class="text-input" 
+                <textarea
+                    id="text-input"
+                    class="text-input"
                     placeholder="請輸入您的文本內容進行角色關係分析...
 
 支持分析：
 • 小說故事片段
-• 新聞報導內容  
+• 新聞報導內容
 • 對話記錄文本
 • 任何包含人物角色的中文文本
 
-系統將自動識別人物、分析關係並建立網絡圖。"></textarea>
+系統將自動識別人物、分析關係並建立網絡圖。
+
+或者使用上方的文件上傳功能來載入文本內容。"></textarea>
                 <div class="input-actions">
                     <button id="analyze-text-btn" class="btn btn--primary">🔍 開始分析</button>
                     <div class="char-count" id="char-count">0 字元</div>
@@ -58,37 +78,191 @@
             </div>
         </div>
 
-        <!-- 右側：人物信息表格 -->
+        <!-- 右側：可視化面板 -->
         <div class="right-panel">
             <div class="visualization-header">
-                <h3>👥 人物信息表格</h3>
+                <h3>📊 人物關係視覺化</h3>
                 <div class="view-controls">
-                    <button id="export-table-btn" class="btn btn--sm btn--outline">匯出表格</button>
-                    <button id="sort-by-importance-btn" class="btn btn--sm btn--secondary">按重要性排序</button>
+                    <button id="view-split-btn" class="btn btn--sm btn--primary active">分屏顯示</button>
+                    <button id="view-graph-only-btn" class="btn btn--sm btn--outline">僅關係圖</button>
+                    <button id="view-table-only-btn" class="btn btn--sm btn--outline">僅數據表</button>
+                    <button id="export-table-btn" class="btn btn--sm btn--outline">匯出</button>
                 </div>
             </div>
-            
-            <div id="character-table-container" class="character-table-container">
-                <div class="table-placeholder" id="table-placeholder">
-                    <div class="placeholder-icon">📊</div>
-                    <div class="placeholder-text">
-                        <h3>人物信息表格</h3>
-                        <p>輸入文本並點擊「開始分析」以查看詳細人物信息</p>
+
+            <!-- 分屏顯示 -->
+            <div id="split-view" class="split-view active">
+                <!-- 上方：關係圖 -->
+                <div class="split-graph-section">
+                    <div class="section-header">
+                        <h4>🕸️ 人物關係圖</h4>
+                        <div class="graph-controls">
+                            <button id="reset-layout-btn" class="btn btn--sm btn--secondary">重置</button>
+                            <button id="zoom-fit-btn" class="btn btn--sm btn--secondary">適應</button>
+                            <button id="toggle-labels-btn" class="btn btn--sm btn--secondary">標籤</button>
+                        </div>
+                    </div>
+
+                    <div id="relationship-graph-container" class="relationship-graph-container split">
+                        <div class="graph-placeholder" id="graph-placeholder">
+                            <div class="placeholder-icon">🕸️</div>
+                            <div class="placeholder-text">
+                                <h3>人物關係圖</h3>
+                                <p>輸入文本並點擊「開始分析」以查看人物關係網絡</p>
+                            </div>
+                        </div>
+                        <div id="relationship-graph" class="relationship-graph" style="display: none;"></div>
+                    </div>
+
+                    <!-- 簡化圖例 -->
+                    <div class="graph-legend compact">
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <span class="legend-node main-character"></span>
+                                <span>主要</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-node secondary-character"></span>
+                                <span>次要</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-line friendship"></span>
+                                <span>朋友</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-line family"></span>
+                                <span>家庭</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-line work"></span>
+                                <span>工作</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <div id="character-table" class="character-table-wrapper" style="display: none;">
-                    <table class="character-table">
-                        <thead>
-                            <tr>
-                                <th class="sortable" data-sort="name">人物名稱 <span class="sort-arrow"></span></th>
-                                <th class="sortable" data-sort="description">描述</th>
-                                <th>人物行為</th>
-                            </tr>
-                        </thead>
-                        <tbody id="character-table-body">
-                        </tbody>
-                    </table>
+
+                <!-- 下方：數據表 -->
+                <div class="split-table-section">
+                    <div class="section-header">
+                        <h4>📊 人物數據表</h4>
+                        <div class="table-controls">
+                            <button id="sort-by-importance-btn" class="btn btn--sm btn--secondary">排序</button>
+                        </div>
+                    </div>
+
+                    <div id="character-table-container" class="character-table-container split">
+                        <div class="table-placeholder" id="table-placeholder">
+                            <div class="placeholder-icon">📊</div>
+                            <div class="placeholder-text">
+                                <h3>人物信息表格</h3>
+                                <p>輸入文本並點擊「開始分析」以查看詳細人物信息</p>
+                            </div>
+                        </div>
+
+                        <div id="character-table" class="character-table-wrapper" style="display: none;">
+                            <table class="character-table">
+                                <thead>
+                                    <tr>
+                                        <th class="sortable" data-sort="name">人物名稱 <span class="sort-arrow"></span></th>
+                                        <th class="sortable" data-sort="description">描述</th>
+                                        <th>人物行為</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="character-table-body">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 僅關係圖視圖 -->
+            <div id="graph-only-view" class="single-view">
+                <div class="graph-controls">
+                    <button id="reset-layout-btn-2" class="btn btn--sm btn--secondary">重置布局</button>
+                    <button id="zoom-fit-btn-2" class="btn btn--sm btn--secondary">適應視窗</button>
+                    <button id="toggle-labels-btn-2" class="btn btn--sm btn--secondary">顯示/隱藏標籤</button>
+                </div>
+
+                <div id="relationship-graph-container-2" class="relationship-graph-container full">
+                    <div class="graph-placeholder" id="graph-placeholder-2">
+                        <div class="placeholder-icon">🕸️</div>
+                        <div class="placeholder-text">
+                            <h3>人物關係圖</h3>
+                            <p>輸入文本並點擊「開始分析」以查看人物關係網絡</p>
+                        </div>
+                    </div>
+                    <div id="relationship-graph-2" class="relationship-graph" style="display: none;"></div>
+                </div>
+
+                <!-- 完整圖例 -->
+                <div class="graph-legend full">
+                    <h4>圖例說明</h4>
+                    <div class="legend-section">
+                        <h5>人物節點</h5>
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <span class="legend-node main-character"></span>
+                                <span>主要人物</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-node secondary-character"></span>
+                                <span>次要人物</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="legend-section">
+                        <h5>關係類型</h5>
+                        <div class="legend-items">
+                            <div class="legend-item">
+                                <span class="legend-line friendship"></span>
+                                <span>朋友關係</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-line family"></span>
+                                <span>家庭關係</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-line work"></span>
+                                <span>工作關係</span>
+                            </div>
+                            <div class="legend-item">
+                                <span class="legend-line default"></span>
+                                <span>一般關係</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 僅表格視圖 -->
+            <div id="table-only-view" class="single-view">
+                <div class="table-controls">
+                    <button id="sort-by-importance-btn-2" class="btn btn--sm btn--secondary">按重要性排序</button>
+                </div>
+
+                <div id="character-table-container-2" class="character-table-container full">
+                    <div class="table-placeholder" id="table-placeholder-2">
+                        <div class="placeholder-icon">📊</div>
+                        <div class="placeholder-text">
+                            <h3>人物信息表格</h3>
+                            <p>輸入文本並點擊「開始分析」以查看詳細人物信息</p>
+                        </div>
+                    </div>
+
+                    <div id="character-table-2" class="character-table-wrapper" style="display: none;">
+                        <table class="character-table">
+                            <thead>
+                                <tr>
+                                    <th class="sortable" data-sort="name">人物名稱 <span class="sort-arrow"></span></th>
+                                    <th class="sortable" data-sort="description">描述</th>
+                                    <th>人物行為</th>
+                                </tr>
+                            </thead>
+                            <tbody id="character-table-body-2">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

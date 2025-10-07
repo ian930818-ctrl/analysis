@@ -155,7 +155,49 @@ body {
     background: #f8f9fa;
 }
 
+/* 多格式文件上傳樣式 */
+.simple-upload-section {
+    margin-bottom: 20px;
+}
+
+.upload-button-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e1e5e9;
+}
+
+.hidden-file-input {
+    display: none;
+}
+
+.upload-info {
+    color: #6b7280;
+    font-size: 0.9em;
+}
+
+.format-support {
+    margin-top: 10px;
+    padding: 8px 15px;
+    background: #e8f4f8;
+    border-radius: 6px;
+    border-left: 3px solid #0ea5e9;
+}
+
+.format-support small {
+    color: #0369a1;
+    font-size: 0.85em;
+    line-height: 1.4;
+}
+
 /* Text Input Styles */
+.text-input-section {
+    margin-bottom: 20px;
+}
+
 .text-input {
     width: 100%;
     min-height: 200px;
@@ -202,6 +244,280 @@ body {
     font-style: italic;
     text-align: center;
     margin: 40px 0;
+}
+
+/* 視覺化面板樣式 */
+.visualization-view {
+    display: none;
+}
+
+.visualization-view.active {
+    display: block;
+}
+
+.view-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.view-controls .btn.active {
+    box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+}
+
+/* 分屏視圖樣式 */
+.split-view {
+    display: none;
+}
+
+.split-view.active {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    height: calc(100vh - 200px);
+}
+
+.single-view {
+    display: none;
+}
+
+.single-view.active {
+    display: block;
+}
+
+.split-graph-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.split-table-section {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.relationship-graph-container.split {
+    flex: 1;
+    min-height: 0;
+    min-height: 300px;
+}
+
+.character-table-container.split {
+    flex: 1;
+    min-height: 0;
+    min-height: 250px;
+}
+
+.relationship-graph-container.full {
+    min-height: 500px;
+}
+
+.character-table-container.full {
+    min-height: 500px;
+}
+
+.graph-legend.compact {
+    margin-top: 10px;
+    padding: 10px 15px;
+}
+
+.graph-legend.compact .legend-items {
+    gap: 10px;
+}
+
+.graph-legend.compact .legend-item {
+    font-size: 0.8em;
+}
+
+.graph-legend.full {
+    margin-top: 15px;
+}
+
+/* 關係圖樣式 */
+.graph-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e1e5e9;
+}
+
+.relationship-graph-container {
+    position: relative;
+    width: 100%;
+    min-height: 450px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+}
+
+.graph-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 450px;
+    color: #666;
+}
+
+.graph-placeholder .placeholder-icon {
+    font-size: 3em;
+    margin-bottom: 20px;
+}
+
+.relationship-graph {
+    width: 100%;
+    height: 450px;
+    position: relative;
+}
+
+/* 關係圖SVG樣式 */
+.relationship-link {
+    cursor: pointer;
+    transition: stroke-width 0.2s, stroke-opacity 0.2s;
+}
+
+.relationship-link:hover {
+    stroke-width: 4px;
+    stroke-opacity: 1;
+}
+
+.node-label {
+    user-select: none;
+    font-weight: 500;
+    text-shadow: 1px 1px 1px rgba(255,255,255,0.8);
+}
+
+.link-label {
+    user-select: none;
+    font-weight: 500;
+    font-size: 11px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.link-label:hover {
+    opacity: 1;
+    font-weight: 600;
+}
+
+/* 不同關係類型的樣式 */
+.link-label.friendship {
+    fill: #10b981;
+}
+
+.link-label.family {
+    fill: #f59e0b;
+}
+
+.link-label.work {
+    fill: #3b82f6;
+}
+
+.link-label.romantic {
+    fill: #ef4444;
+}
+
+.link-label.default {
+    fill: #6b7280;
+}
+
+/* 圖例樣式 */
+.graph-legend {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e1e5e9;
+}
+
+.graph-legend h4 {
+    margin: 0 0 10px 0;
+    color: #374151;
+    font-size: 1em;
+}
+
+.legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9em;
+    color: #6b7280;
+}
+
+.legend-node {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+.legend-node.main-character {
+    background: #667eea;
+}
+
+.legend-node.secondary-character {
+    background: #4ade80;
+}
+
+.legend-line {
+    width: 20px;
+    height: 2px;
+    display: inline-block;
+}
+
+.legend-line.friendship {
+    background: #10b981;
+}
+
+.legend-line.family {
+    background: #f59e0b;
+}
+
+.legend-line.work {
+    background: #3b82f6;
+}
+
+.legend-line.default {
+    background: #6b7280;
+}
+
+.legend-section {
+    margin-bottom: 15px;
+}
+
+.legend-section:last-child {
+    margin-bottom: 0;
+}
+
+.legend-section h5 {
+    margin: 0 0 8px 0;
+    font-size: 0.9em;
+    color: #374151;
+    font-weight: 600;
+}
+
+/* 表格控制樣式 */
+.table-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e1e5e9;
 }
 
 /* Character Table */
@@ -441,18 +757,151 @@ body {
     z-index: 10000;
 }
 
+.toast {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 10px;
+    padding: 12px 16px;
+    min-width: 300px;
+    animation: slideIn 0.3s ease-out;
+}
+
+.toast-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toast-icon {
+    font-size: 1.2em;
+}
+
+.toast-message {
+    flex: 1;
+    font-size: 0.9em;
+    color: #374151;
+}
+
+.toast-success {
+    border-left: 4px solid #10b981;
+}
+
+.toast-error {
+    border-left: 4px solid #ef4444;
+}
+
+.toast-warning {
+    border-left: 4px solid #f59e0b;
+}
+
+.toast-info {
+    border-left: 4px solid #3b82f6;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+
 /* Responsive */
 @media (max-width: 768px) {
     .workspace {
         flex-direction: column;
         padding: 10px;
     }
-    
+
     .left-panel, .right-panel {
         flex: none;
     }
-    
+
     .network-container {
         height: 300px;
+    }
+
+    .relationship-graph-wrapper {
+        height: 350px;
+    }
+
+    .graph-legend {
+        position: static;
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
+
+    /* 分屏視圖移動設備調整 */
+    .split-view.active {
+        height: auto;
+        gap: 15px;
+    }
+
+    .split-graph-section,
+    .split-table-section {
+        flex: none;
+    }
+
+    .relationship-graph-container.split {
+        min-height: 250px;
+    }
+
+    .character-table-container.split {
+        min-height: 200px;
+    }
+
+    /* 移動設備上的簡單文件上傳調整 */
+    .upload-button-group {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .upload-info {
+        text-align: center;
+        font-size: 0.85em;
+    }
+
+    /* 移動設備關係圖調整 */
+    .relationship-graph-container {
+        min-height: 300px;
+    }
+
+    .relationship-graph {
+        height: 300px;
+    }
+
+    .graph-placeholder {
+        height: 300px;
+    }
+
+    .graph-controls {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .graph-controls .btn {
+        font-size: 0.8em;
+        padding: 6px 10px;
+    }
+
+    .legend-items {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .view-controls {
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .table-controls {
+        flex-wrap: wrap;
+        gap: 5px;
     }
 }

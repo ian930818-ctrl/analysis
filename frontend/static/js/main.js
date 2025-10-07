@@ -5,10 +5,14 @@ class TextAnalyzerMVP {
         this.relationships = [];
         this.networkSimulation = null;
         this.svg = null;
-        
+        this.uploadedFiles = [];
+        this.currentView = 'split'; // 'split', 'graph-only', or 'table-only'
+        this.labelsVisible = true;
+        this.zoom = null;
+
         // Sample text data
         // 移除範例文本 - 純淨分析環境
-        
+
         this.init();
     }
 
@@ -43,28 +47,102 @@ class TextAnalyzerMVP {
         const clearTextBtn = document.getElementById('clear-text-btn');
         const exportTableBtn = document.getElementById('export-table-btn');
         const sortByImportanceBtn = document.getElementById('sort-by-importance-btn');
-        
+
+        // 簡單文件上傳
+        const fileInput = document.getElementById('file-input');
+        const uploadFileBtn = document.getElementById('upload-file-btn');
+
+        // 視圖切換按鈕
+        const viewSplitBtn = document.getElementById('view-split-btn');
+        const viewGraphOnlyBtn = document.getElementById('view-graph-only-btn');
+        const viewTableOnlyBtn = document.getElementById('view-table-only-btn');
+
+        // 關係圖控制按鈕
+        const resetLayoutBtn = document.getElementById('reset-layout-btn');
+        const zoomFitBtn = document.getElementById('zoom-fit-btn');
+        const toggleLabelsBtn = document.getElementById('toggle-labels-btn');
+
+        // 第二組關係圖控制按鈕
+        const resetLayoutBtn2 = document.getElementById('reset-layout-btn-2');
+        const zoomFitBtn2 = document.getElementById('zoom-fit-btn-2');
+        const toggleLabelsBtn2 = document.getElementById('toggle-labels-btn-2');
+        const sortByImportanceBtn2 = document.getElementById('sort-by-importance-btn-2');
+
         if (textInput) {
             textInput.addEventListener('input', () => {
                 this.updateCharCount();
                 this.updateTextPreview();
             });
         }
-        
+
         if (analyzeBtn) {
             analyzeBtn.addEventListener('click', () => this.analyzeText());
         }
-        
+
         if (clearTextBtn) {
             clearTextBtn.addEventListener('click', () => this.clearText());
         }
-        
+
         if (exportTableBtn) {
             exportTableBtn.addEventListener('click', () => this.exportTable());
         }
-        
+
         if (sortByImportanceBtn) {
             sortByImportanceBtn.addEventListener('click', () => this.sortByImportance());
+        }
+
+        // 簡單文件上傳事件
+        if (uploadFileBtn) {
+            uploadFileBtn.addEventListener('click', () => {
+                if (fileInput) fileInput.click();
+            });
+        }
+
+        if (fileInput) {
+            fileInput.addEventListener('change', (e) => this.handleSimpleFileUpload(e));
+        }
+
+        // 視圖切換事件
+        if (viewSplitBtn) {
+            viewSplitBtn.addEventListener('click', () => this.switchToSplitView());
+        }
+
+        if (viewGraphOnlyBtn) {
+            viewGraphOnlyBtn.addEventListener('click', () => this.switchToGraphOnlyView());
+        }
+
+        if (viewTableOnlyBtn) {
+            viewTableOnlyBtn.addEventListener('click', () => this.switchToTableOnlyView());
+        }
+
+        // 關係圖控制事件
+        if (resetLayoutBtn) {
+            resetLayoutBtn.addEventListener('click', () => this.resetGraphLayout());
+        }
+
+        if (zoomFitBtn) {
+            zoomFitBtn.addEventListener('click', () => this.zoomToFit());
+        }
+
+        if (toggleLabelsBtn) {
+            toggleLabelsBtn.addEventListener('click', () => this.toggleLabels());
+        }
+
+        // 第二組關係圖控制事件
+        if (resetLayoutBtn2) {
+            resetLayoutBtn2.addEventListener('click', () => this.resetGraphLayout());
+        }
+
+        if (zoomFitBtn2) {
+            zoomFitBtn2.addEventListener('click', () => this.zoomToFit());
+        }
+
+        if (toggleLabelsBtn2) {
+            toggleLabelsBtn2.addEventListener('click', () => this.toggleLabels());
+        }
+
+        if (sortByImportanceBtn2) {
+            sortByImportanceBtn2.addEventListener('click', () => this.sortByImportance());
         }
     }
 
@@ -121,12 +199,167 @@ class TextAnalyzerMVP {
             this.currentText = '';
             this.characters = [];
             this.relationships = [];
+            this.uploadedFiles = [];
             this.updateCharCount();
             this.updateTextPreview();
             this.updateUI();
             this.clearTable();
+            this.clearFileList();
             this.showToast('文本已清除', 'info');
         }
+    }
+
+    // 多格式文件上傳方法
+    async handleSimpleFileUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // 檢查支援的文件類型
+        const supportedExtensions = ['.txt', '.pdf', '.doc', '.docx', '.rtf'];
+        const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+        if (!supportedExtensions.includes(fileExtension)) {
+            alert('不支援的文件格式。請選擇 .txt, .pdf, .doc, .docx, .rtf 格式的文件。');
+            e.target.value = '';
+            return;
+        }
+
+        try {
+            this.showLoading(true, `正在讀取 ${fileExtension.toUpperCase()} 文件...`);
+
+            let content = '';
+
+            // 根據文件類型選擇不同的讀取方法
+            switch (fileExtension) {
+                case '.txt':
+                case '.rtf':
+                    content = await this.readTextFile(file);
+                    break;
+                case '.pdf':
+                    content = await this.readPDFFile(file);
+                    break;
+                case '.doc':
+                case '.docx':
+                    content = await this.readWordFile(file);
+                    break;
+                default:
+                    throw new Error('不支援的文件格式');
+            }
+
+            if (content) {
+                this.insertContentToTextArea(content, file.name);
+            } else {
+                throw new Error('無法從文件中提取文本內容');
+            }
+
+        } catch (error) {
+            this.showLoading(false);
+            console.error('文件處理錯誤:', error);
+            alert(`文件處理失敗: ${error.message}`);
+        } finally {
+            e.target.value = ''; // 清除文件選擇
+        }
+    }
+
+    // 讀取純文本文件
+    async readTextFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('文本文件讀取失敗'));
+            reader.readAsText(file, 'UTF-8');
+        });
+    }
+
+    // 讀取PDF文件
+    async readPDFFile(file) {
+        try {
+            // 設置PDF.js worker路徑
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            } else {
+                throw new Error('PDF.js 庫未載入');
+            }
+
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+            let fullText = '';
+
+            // 逐頁提取文本
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const textContent = await page.getTextContent();
+
+                const pageText = textContent.items
+                    .map(item => item.str)
+                    .join(' ')
+                    .replace(/\s+/g, ' ') // 合併多餘空格
+                    .trim();
+
+                if (pageText) {
+                    fullText += `\n第${pageNum}頁:\n${pageText}\n`;
+                }
+            }
+
+            return fullText.trim();
+
+        } catch (error) {
+            throw new Error(`PDF讀取失敗: ${error.message}`);
+        }
+    }
+
+    // 讀取Word文檔
+    async readWordFile(file) {
+        try {
+            if (typeof mammoth === 'undefined') {
+                throw new Error('Mammoth.js 庫未載入');
+            }
+
+            const arrayBuffer = await file.arrayBuffer();
+            const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+
+            if (result.messages && result.messages.length > 0) {
+                console.warn('Word文檔讀取警告:', result.messages);
+            }
+
+            return result.value || '';
+
+        } catch (error) {
+            throw new Error(`Word文檔讀取失敗: ${error.message}`);
+        }
+    }
+
+    // 將內容插入到文本區域
+    insertContentToTextArea(content, fileName) {
+        const textInput = document.getElementById('text-input');
+
+        if (!textInput) {
+            throw new Error('找不到文本輸入區域');
+        }
+
+        // 詢問用戶是否要覆蓋現有內容
+        const currentText = textInput.value.trim();
+        if (currentText) {
+            const append = confirm('文本框中已有內容，是否要追加新內容？\n\n確定：追加到現有內容\n取消：覆蓋現有內容');
+            if (append) {
+                textInput.value = currentText + '\n\n' + content;
+            } else {
+                textInput.value = content;
+            }
+        } else {
+            textInput.value = content;
+        }
+
+        this.updateCharCount();
+        this.updateTextPreview();
+        this.showLoading(false);
+
+        // 顯示成功消息
+        alert(`成功載入文件: ${fileName}\n提取文本長度: ${content.length} 字元`);
+
+        // 滾動到文本框
+        textInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     exportTable() {
@@ -292,11 +525,13 @@ class TextAnalyzerMVP {
                 const cooccurrence = this.calculateCooccurrence(char1.name, char2.name);
                 
                 if (cooccurrence > 0) {
+                    const relationInfo = this.determineRelationshipType(char1.name, char2.name);
                     this.relationships.push({
                         id: `rel_${i}_${j}`,
                         source: char1.id,
                         target: char2.id,
-                        type: this.determineRelationshipType(char1.name, char2.name),
+                        type: relationInfo.type,
+                        text: relationInfo.text,
                         strength: Math.min(5, Math.max(1, cooccurrence))
                     });
                 }
@@ -318,38 +553,520 @@ class TextAnalyzerMVP {
     }
 
     determineRelationshipType(name1, name2) {
-        if ((name1.includes('兔子') || name2.includes('兔子')) && 
-            (name1.includes('狐狸') || name2.includes('狐狸'))) {
-            return '合作夥伴';
+        // 更豐富的關係判斷邏輯
+
+        // 師生關係
+        if ((name1.includes('老師') || name1.includes('博士') || name1.includes('教授')) ||
+            (name2.includes('老師') || name2.includes('博士') || name2.includes('教授'))) {
+            return { type: 'work', text: '師生' };
         }
-        if (name1.includes('博士') || name2.includes('博士')) {
-            return '師生';
+
+        // 家庭關係
+        if ((name1.includes('爸爸') || name1.includes('媽媽') || name1.includes('父') || name1.includes('母')) ||
+            (name2.includes('爸爸') || name2.includes('媽媽') || name2.includes('父') || name2.includes('母')) ||
+            (name1.includes('哥哥') || name1.includes('姐姐') || name1.includes('弟弟') || name1.includes('妹妹')) ||
+            (name2.includes('哥哥') || name2.includes('姐姐') || name2.includes('弟弟') || name2.includes('妹妹'))) {
+            return { type: 'family', text: '家人' };
         }
-        return '朋友';
+
+        // 同事關係
+        if ((name1.includes('經理') || name1.includes('主管') || name1.includes('同事')) ||
+            (name2.includes('經理') || name2.includes('主管') || name2.includes('同事'))) {
+            return { type: 'work', text: '同事' };
+        }
+
+        // 朋友關係 (通過文本內容判斷)
+        const friendKeywords = ['朋友', '好友', '同學', '夥伴', '玩伴'];
+        if (friendKeywords.some(keyword => this.currentText.includes(keyword))) {
+            return { type: 'friendship', text: '朋友' };
+        }
+
+        // 合作關係
+        if (this.currentText.includes('合作') || this.currentText.includes('一起') || this.currentText.includes('共同')) {
+            return { type: 'work', text: '合作' };
+        }
+
+        // 預設關係
+        return { type: 'default', text: '認識' };
     }
 
     updateUI() {
         console.log('更新UI，人物數量:', this.characters.length);
         this.updateTextStats();
-        this.renderCharacterTable();
         this.renderCharacterList();
-        
-        // 強制重新渲染表格
+
+        // 設置默認視圖並更新按鈕狀態
+        this.updateViewButtons();
+        this.updateViewDisplay();
+
+        // 根據當前視圖渲染相應的內容
         if (this.characters.length > 0) {
-            console.log('顯示表格，隱藏佔位符');
-            const tablePlaceholder = document.getElementById('table-placeholder');
-            const characterTable = document.getElementById('character-table');
-            
-            if (tablePlaceholder) tablePlaceholder.style.display = 'none';
-            if (characterTable) characterTable.style.display = 'block';
+            console.log('顯示數據，隱藏佔位符');
+            switch (this.currentView) {
+                case 'split':
+                    this.renderCharacterTable('character-table-body');
+                    this.renderRelationshipGraph('relationship-graph');
+                    break;
+                case 'graph-only':
+                    this.renderRelationshipGraph('relationship-graph-2');
+                    break;
+                case 'table-only':
+                    this.renderCharacterTable('character-table-body-2');
+                    break;
+            }
+        } else {
+            // 顯示占位符
+            this.showGraphPlaceholder('relationship-graph');
+            this.showGraphPlaceholder('relationship-graph-2');
         }
     }
 
-    renderCharacterTable() {
+    // 視圖切換方法
+    switchToSplitView() {
+        this.currentView = 'split';
+        this.updateViewButtons();
+        this.updateViewDisplay();
+
+        // 如果有數據，重新渲染關係圖
+        if (this.characters.length > 0) {
+            setTimeout(() => {
+                this.renderRelationshipGraph('relationship-graph');
+                this.updateTable();
+            }, 100);
+        }
+    }
+
+    switchToGraphOnlyView() {
+        this.currentView = 'graph-only';
+        this.updateViewButtons();
+        this.updateViewDisplay();
+
+        // 如果有數據，重新渲染關係圖
+        if (this.characters.length > 0) {
+            setTimeout(() => this.renderRelationshipGraph('relationship-graph-2'), 100);
+        }
+    }
+
+    switchToTableOnlyView() {
+        this.currentView = 'table-only';
+        this.updateViewButtons();
+        this.updateViewDisplay();
+
+        // 如果有數據，更新表格
+        if (this.characters.length > 0) {
+            this.updateTable('character-table-body-2');
+        }
+    }
+
+    updateViewButtons() {
+        const viewSplitBtn = document.getElementById('view-split-btn');
+        const viewGraphOnlyBtn = document.getElementById('view-graph-only-btn');
+        const viewTableOnlyBtn = document.getElementById('view-table-only-btn');
+
+        // 重置所有按鈕狀態
+        [viewSplitBtn, viewGraphOnlyBtn, viewTableOnlyBtn].forEach(btn => {
+            if (btn) {
+                btn.classList.remove('btn--primary', 'active');
+                btn.classList.add('btn--outline');
+            }
+        });
+
+        // 設置當前活動按鈕
+        let activeBtn;
+        switch (this.currentView) {
+            case 'split':
+                activeBtn = viewSplitBtn;
+                break;
+            case 'graph-only':
+                activeBtn = viewGraphOnlyBtn;
+                break;
+            case 'table-only':
+                activeBtn = viewTableOnlyBtn;
+                break;
+        }
+
+        if (activeBtn) {
+            activeBtn.classList.remove('btn--outline');
+            activeBtn.classList.add('btn--primary', 'active');
+        }
+    }
+
+    updateViewDisplay() {
+        const splitView = document.getElementById('split-view');
+        const graphOnlyView = document.getElementById('graph-only-view');
+        const tableOnlyView = document.getElementById('table-only-view');
+
+        // 隱藏所有視圖
+        [splitView, graphOnlyView, tableOnlyView].forEach(view => {
+            if (view) {
+                view.classList.remove('active');
+                view.style.display = 'none';
+            }
+        });
+
+        // 顯示當前視圖
+        let activeView;
+        switch (this.currentView) {
+            case 'split':
+                activeView = splitView;
+                break;
+            case 'graph-only':
+                activeView = graphOnlyView;
+                break;
+            case 'table-only':
+                activeView = tableOnlyView;
+                break;
+        }
+
+        if (activeView) {
+            activeView.classList.add('active');
+            activeView.style.display = 'block';
+        }
+    }
+
+    // 關係圖渲染方法
+    renderRelationshipGraph(containerId = 'relationship-graph') {
+        const container = document.getElementById(containerId);
+        if (!container || this.characters.length === 0) {
+            this.showGraphPlaceholder(containerId);
+            return;
+        }
+
+        this.hideGraphPlaceholder(containerId);
+
+        // 清除現有內容
+        container.innerHTML = '';
+
+        // 創建SVG
+        const containerRect = container.getBoundingClientRect();
+        const width = containerRect.width || 600;
+        const height = containerRect.height || 400;
+
+        const svg = d3.select(container)
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .style('border', '1px solid #e1e5e9')
+            .style('border-radius', '8px');
+
+        // 添加縮放功能
+        this.zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on('zoom', (event) => {
+                g.attr('transform', event.transform);
+            });
+
+        svg.call(this.zoom);
+
+        // 創建主容器
+        const g = svg.append('g');
+
+        // 準備數據
+        const nodes = this.characters.map(char => ({
+            id: char.id || char.name,
+            name: char.name,
+            importance: char.importance || 1,
+            description: char.description || '',
+            x: Math.random() * width,
+            y: Math.random() * height
+        }));
+
+        const links = this.relationships.map(rel => ({
+            source: rel.source,
+            target: rel.target,
+            strength: rel.strength || 1,
+            type: rel.type || 'relation',
+            text: rel.text || rel.type || '關係' // 添加關係文本
+        }));
+
+        // 創建力導向圖
+        const simulation = d3.forceSimulation(nodes)
+            .force('link', d3.forceLink(links).id(d => d.id).distance(80))
+            .force('charge', d3.forceManyBody().strength(-200))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(30));
+
+        // 創建連線組
+        const linkGroup = g.append('g').attr('class', 'links');
+
+        // 創建連線
+        const link = linkGroup.selectAll('line')
+            .data(links)
+            .enter().append('line')
+            .attr('class', 'relationship-link')
+            .attr('stroke', d => this.getRelationshipColor(d.type))
+            .attr('stroke-opacity', 0.6)
+            .attr('stroke-width', d => Math.sqrt(d.strength) * 2);
+
+        // 創建連線標籤容器
+        const linkLabelGroup = g.append('g').attr('class', 'link-labels');
+
+        // 為每個標籤創建背景矩形和文字
+        const linkLabelContainer = linkLabelGroup.selectAll('g')
+            .data(links)
+            .enter().append('g')
+            .attr('class', 'link-label-container')
+            .style('display', this.labelsVisible ? 'block' : 'none');
+
+        // 添加背景矩形
+        linkLabelContainer.append('rect')
+            .attr('class', 'link-label-bg')
+            .attr('fill', 'white')
+            .attr('stroke', d => this.getRelationshipColor(d.type))
+            .attr('stroke-width', '1')
+            .attr('rx', '4')
+            .attr('ry', '4');
+
+        // 添加文字
+        const linkLabel = linkLabelContainer.append('text')
+            .attr('class', d => `link-label ${d.type}`)
+            .attr('text-anchor', 'middle')
+            .attr('dy', '0.35em')
+            .attr('font-size', '10px')
+            .attr('font-family', 'Arial, sans-serif')
+            .attr('fill', d => this.getRelationshipColor(d.type))
+            .attr('font-weight', '600')
+            .style('pointer-events', 'none')
+            .text(d => d.text);
+
+        // 創建節點
+        const node = g.append('g')
+            .selectAll('circle')
+            .data(nodes)
+            .enter().append('circle')
+            .attr('class', d => d.importance > 3 ? 'main-character' : 'secondary-character')
+            .attr('r', d => 10 + d.importance * 3)
+            .attr('fill', d => d.importance > 3 ? '#667eea' : '#4ade80')
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 2)
+            .style('cursor', 'pointer')
+            .call(d3.drag()
+                .on('start', (event, d) => {
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                })
+                .on('drag', (event, d) => {
+                    d.fx = event.x;
+                    d.fy = event.y;
+                })
+                .on('end', (event, d) => {
+                    if (!event.active) simulation.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                }));
+
+        // 添加節點標籤
+        const label = g.append('g')
+            .selectAll('text')
+            .data(nodes)
+            .enter().append('text')
+            .text(d => d.name)
+            .attr('class', 'node-label')
+            .attr('font-family', 'Arial, sans-serif')
+            .attr('font-size', '12px')
+            .attr('text-anchor', 'middle')
+            .attr('dy', '0.35em')
+            .attr('fill', '#333')
+            .style('pointer-events', 'none')
+            .style('display', this.labelsVisible ? 'block' : 'none');
+
+        // 添加hover效果
+        node.on('mouseover', (event, d) => {
+            // 高亮相關連線
+            link.style('stroke-opacity', l =>
+                l.source.id === d.id || l.target.id === d.id ? 1 : 0.1
+            );
+
+            // 顯示tooltip
+            this.showTooltip(event, d);
+        })
+        .on('mouseout', () => {
+            link.style('stroke-opacity', 0.6);
+            this.hideTooltip();
+        });
+
+        // 更新位置
+        simulation.on('tick', () => {
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+
+            // 更新標籤容器位置
+            linkLabelContainer
+                .attr('transform', d => {
+                    const midX = (d.source.x + d.target.x) / 2;
+                    const midY = (d.source.y + d.target.y) / 2;
+
+                    // 計算線條角度，調整標籤位置避免重疊
+                    const dx = d.target.x - d.source.x;
+                    const dy = d.target.y - d.source.y;
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+                    // 根據角度偏移標籤位置，避免與線條重疊
+                    const offsetDistance = 8;
+                    const offsetX = -Math.sin(angle * Math.PI / 180) * offsetDistance;
+                    const offsetY = Math.cos(angle * Math.PI / 180) * offsetDistance;
+
+                    return `translate(${midX + offsetX}, ${midY + offsetY})`;
+                });
+
+            // 更新標籤背景矩形大小
+            linkLabelContainer.selectAll('.link-label-bg')
+                .each(function(d) {
+                    const textElement = d3.select(this.parentNode).select('text').node();
+                    if (textElement) {
+                        const bbox = textElement.getBBox();
+                        d3.select(this)
+                            .attr('x', bbox.x - 4)
+                            .attr('y', bbox.y - 2)
+                            .attr('width', bbox.width + 8)
+                            .attr('height', bbox.height + 4);
+                    }
+                });
+
+            node
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y);
+
+            label
+                .attr('x', d => d.x)
+                .attr('y', d => d.y + 25);
+        });
+
+        this.networkSimulation = simulation;
+        this.svg = svg;
+    }
+
+    showGraphPlaceholder(containerId = 'relationship-graph') {
+        const placeholderId = containerId === 'relationship-graph-2' ? 'graph-placeholder-2' : 'graph-placeholder';
+        const placeholder = document.getElementById(placeholderId);
+        const graph = document.getElementById(containerId);
+        if (placeholder) placeholder.style.display = 'flex';
+        if (graph) graph.style.display = 'none';
+    }
+
+    hideGraphPlaceholder(containerId = 'relationship-graph') {
+        const placeholderId = containerId === 'relationship-graph-2' ? 'graph-placeholder-2' : 'graph-placeholder';
+        const placeholder = document.getElementById(placeholderId);
+        const graph = document.getElementById(containerId);
+        if (placeholder) placeholder.style.display = 'none';
+        if (graph) graph.style.display = 'block';
+    }
+
+    // 關係圖控制方法
+    resetGraphLayout() {
+        if (this.networkSimulation) {
+            this.networkSimulation.alpha(1).restart();
+            this.showToast('佈局已重置', 'info');
+        }
+    }
+
+    zoomToFit() {
+        if (this.svg && this.zoom) {
+            const svg = this.svg;
+            const bounds = svg.select('g').node().getBBox();
+            const parent = svg.node().getBoundingClientRect();
+
+            const scale = 0.8 * Math.min(
+                parent.width / bounds.width,
+                parent.height / bounds.height
+            );
+
+            const translate = [
+                (parent.width - bounds.width * scale) / 2 - bounds.x * scale,
+                (parent.height - bounds.height * scale) / 2 - bounds.y * scale
+            ];
+
+            svg.transition()
+                .duration(750)
+                .call(this.zoom.transform, d3.zoomIdentity
+                    .translate(translate[0], translate[1])
+                    .scale(scale));
+
+            this.showToast('已調整視圖至適合大小', 'info');
+        }
+    }
+
+    toggleLabels() {
+        this.labelsVisible = !this.labelsVisible;
+
+        if (this.svg) {
+            // 切換節點標籤
+            this.svg.selectAll('.node-label')
+                .style('display', this.labelsVisible ? 'block' : 'none');
+
+            // 切換關係標籤容器
+            this.svg.selectAll('.link-label-container')
+                .style('display', this.labelsVisible ? 'block' : 'none');
+        }
+
+        const btn = document.getElementById('toggle-labels-btn');
+        if (btn) {
+            btn.textContent = this.labelsVisible ? '隱藏標籤' : '顯示標籤';
+        }
+
+        this.showToast(this.labelsVisible ? '標籤已顯示' : '標籤已隱藏', 'info');
+    }
+
+    showTooltip(event, data) {
+        // 簡單的tooltip實現
+        const tooltip = d3.select('body').append('div')
+            .attr('class', 'graph-tooltip')
+            .style('position', 'absolute')
+            .style('background', 'rgba(0,0,0,0.8)')
+            .style('color', 'white')
+            .style('padding', '8px')
+            .style('border-radius', '4px')
+            .style('font-size', '12px')
+            .style('pointer-events', 'none')
+            .style('opacity', 0);
+
+        tooltip.html(`
+            <strong>${data.name}</strong><br/>
+            重要性: ${data.importance}<br/>
+            描述: ${data.description || '無'}
+        `)
+        .style('left', (event.pageX + 10) + 'px')
+        .style('top', (event.pageY - 10) + 'px')
+        .transition()
+        .duration(200)
+        .style('opacity', 1);
+    }
+
+    hideTooltip() {
+        d3.selectAll('.graph-tooltip').remove();
+    }
+
+    // 根據關係類型獲取顏色
+    getRelationshipColor(type) {
+        const colorMap = {
+            'friendship': '#10b981',  // 綠色 - 朋友
+            'family': '#f59e0b',      // 橙色 - 家人
+            'work': '#3b82f6',        // 藍色 - 工作
+            'romantic': '#ef4444',    // 紅色 - 愛情
+            'default': '#6b7280'      // 灰色 - 預設
+        };
+        return colorMap[type] || colorMap['default'];
+    }
+
+    updateTable(tableBodyId = 'character-table-body') {
+        this.renderCharacterTable(tableBodyId);
+    }
+
+    renderCharacterTable(tableBodyId = 'character-table-body') {
         console.log('開始渲染表格，人物數量:', this.characters.length);
-        const tablePlaceholder = document.getElementById('table-placeholder');
-        const characterTable = document.getElementById('character-table');
-        const tableBody = document.getElementById('character-table-body');
+
+        // 根據 tableBodyId 確定對應的元素 ID
+        const isSecondary = tableBodyId === 'character-table-body-2';
+        const placeholderId = isSecondary ? 'table-placeholder-2' : 'table-placeholder';
+        const tableId = isSecondary ? 'character-table-2' : 'character-table';
+
+        const tablePlaceholder = document.getElementById(placeholderId);
+        const characterTable = document.getElementById(tableId);
+        const tableBody = document.getElementById(tableBodyId);
         
         if (!tableBody) {
             console.error('找不到表格主體元素');
@@ -506,7 +1223,7 @@ class TextAnalyzerMVP {
     initializeVisualization() {
         const container = document.getElementById('network-container');
         if (!container) return;
-        
+
         this.svg = d3.select('#network-svg');
         if (this.svg.empty()) {
             console.log('Creating new SVG element...');
@@ -515,15 +1232,15 @@ class TextAnalyzerMVP {
                 .attr('id', 'network-svg')
                 .attr('class', 'network-svg');
         }
-        
+
         const containerRect = container.getBoundingClientRect();
         const width = containerRect.width || 600;
         const height = containerRect.height || 400;
-        
+
         this.svg
             .attr('width', width)
             .attr('height', height);
-        
+
         this.networkSimulation = d3.forceSimulation()
             .force('link', d3.forceLink().id(d => d.id).distance(100))
             .force('charge', d3.forceManyBody().strength(-300))
@@ -689,9 +1406,41 @@ class TextAnalyzerMVP {
         }
     }
 
+
     showToast(message, type = 'info') {
         console.log(`Toast [${type}]: ${message}`);
-        // Simple console log for now - can enhance later
+
+        // 簡單的toast通知實現
+        const toastContainer = document.getElementById('toast-container');
+        if (toastContainer) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <span class="toast-icon">${this.getToastIcon(type)}</span>
+                    <span class="toast-message">${message}</span>
+                </div>
+            `;
+
+            toastContainer.appendChild(toast);
+
+            // 3秒後自動移除
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 3000);
+        }
+    }
+
+    getToastIcon(type) {
+        switch(type) {
+            case 'success': return '✅';
+            case 'error': return '❌';
+            case 'warning': return '⚠️';
+            case 'info':
+            default: return 'ℹ️';
+        }
     }
 }
 
